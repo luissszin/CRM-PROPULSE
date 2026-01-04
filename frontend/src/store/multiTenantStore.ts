@@ -224,14 +224,6 @@ export const useMultiTenantStore = create<MultiTenantState>()(
 
       // Auth Actions
       login: async (email, password, unitSlug) => {
-        // Check static super admin first (Bypass sync delay/errors for admin)
-        if (email === 'admin@propulse.com' && password === 'admin123') {
-          const adminUser = get().users.find(u => u.role === 'super_admin') || staticUsers[0];
-          set({ isAuthenticated: true, currentUser: adminUser, currentUnit: null });
-          get().synchronize().catch(console.warn);
-          return { success: true, redirect: '/admin' };
-        }
-
         // Use API for authentication (bcrypt verification)
         try {
           const response = await api.login(email, password);
