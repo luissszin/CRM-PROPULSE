@@ -200,6 +200,11 @@ router.post('/users', async (req, res) => {
 // ✅ RATE LIMITING: Máximo 5 tentativas a cada 15 minutos
 router.post('/login', loginLimiter, async (req, res) => {
   try {
+    console.log('[Auth] Login attempt:', { 
+      email: req.body?.email, 
+      hasPassword: !!req.body?.password,
+      contentType: req.headers['content-type']
+    });
     const { email, password, unitSlug } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Missing credentials' });
 

@@ -23,7 +23,8 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
 
-    await new Promise(resolve => setTimeout(resolve, 600));
+    // Removed artificial delay
+    // await new Promise(resolve => setTimeout(resolve, 600));
 
     const result = await login(email, password, slug);
 
