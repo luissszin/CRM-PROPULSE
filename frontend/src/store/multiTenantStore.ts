@@ -91,6 +91,8 @@ export interface ChatbotFlow {
 interface MultiTenantState {
   // Auth
   isAuthenticated: boolean;
+  accessToken: string | null;
+  refreshToken: string | null;
   currentUser: User | null;
   currentUnit: Unit | null;
 
@@ -177,6 +179,8 @@ export const useMultiTenantStore = create<MultiTenantState>()(
     (set, get) => ({
       // Initial State
       isAuthenticated: false,
+      accessToken: null,
+      refreshToken: null,
       currentUser: null,
       currentUnit: null,
       units: staticUnits,
@@ -232,16 +236,14 @@ export const useMultiTenantStore = create<MultiTenantState>()(
 
           if (!user) return { success: false, redirect: '' };
 
-          // Save JWT tokens
-          tokenService.setTokens(accessToken, refreshToken);
-          console.log('[Login] Tokens saved to localStorage');
-
-          // Ensure we have latest units data
-          await get().synchronize();
-          const { units } = get();
-
-          // Set authenticated user
-          set({ isAuthenticated: true, currentUser: user });
+          // Set authenticated user and tokens
+          set({ 
+            isAuthenticated: true, 
+            accessToken, 
+            refreshToken, 
+            currentUser: user 
+          });
+          console.log('[Login] Tokens saved to state');
 
           if (user.role === 'super_admin') {
             set({ currentUnit: null });
@@ -281,6 +283,8 @@ export const useMultiTenantStore = create<MultiTenantState>()(
 
         set({
           isAuthenticated: false,
+          accessToken: null,
+          refreshToken: null,
           currentUser: null,
           currentUnit: null,
           selectedLead: null,
@@ -691,6 +695,8 @@ export const useMultiTenantStore = create<MultiTenantState>()(
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         isAuthenticated: state.isAuthenticated,
+        accessToken: state.accessToken,
+        refreshToken: state.refreshToken,
         currentUser: state.currentUser,
         currentUnit: state.currentUnit,
         units: state.units,

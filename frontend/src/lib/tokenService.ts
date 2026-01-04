@@ -4,7 +4,18 @@ const REFRESH_TOKEN_KEY = 'refresh_token';
 
 export const tokenService = {
     getAccessToken: (): string | null => {
-        return localStorage.getItem(TOKEN_KEY);
+        const token = localStorage.getItem(TOKEN_KEY);
+        if (token) return token;
+        
+        // Fallback or Primary: Try to get from Zustand storage
+        try {
+            const storage = localStorage.getItem('propulse-crm-storage');
+            if (storage) {
+                const parsed = JSON.parse(storage);
+                return parsed.state?.accessToken || null;
+            }
+        } catch (e) {}
+        return null;
     },
 
     setAccessToken: (token: string): void => {
@@ -12,7 +23,17 @@ export const tokenService = {
     },
 
     getRefreshToken: (): string | null => {
-        return localStorage.getItem(REFRESH_TOKEN_KEY);
+        const token = localStorage.getItem(REFRESH_TOKEN_KEY);
+        if (token) return token;
+
+        try {
+            const storage = localStorage.getItem('propulse-crm-storage');
+            if (storage) {
+                const parsed = JSON.parse(storage);
+                return parsed.state?.refreshToken || null;
+            }
+        } catch (e) {}
+        return null;
     },
 
     setRefreshToken: (token: string): void => {

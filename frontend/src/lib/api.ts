@@ -15,7 +15,12 @@ async function request(endpoint: string, options: RequestInit = {}) {
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   } else {
-    console.warn(`[API] No token found for request to ${endpoint}`);
+    const rawStorage = localStorage.getItem('propulse-crm-storage');
+    console.warn(`[API] No token found for ${endpoint}. Raw Storage present: ${!!rawStorage}`);
+    if (rawStorage) {
+      const parsed = JSON.parse(rawStorage);
+      console.warn(`[API] Store keys: ${Object.keys(parsed.state || {})}. AccessToken present: ${!!parsed.state?.accessToken}`);
+    }
   }
 
   let response = await fetch(url, { ...options, headers });
