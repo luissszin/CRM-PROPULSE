@@ -15,7 +15,18 @@ router.get('/', async (req, res) => {
     const q = req.query.q;
     const limit = parseInt(req.query.limit || '50', 10);
 
-    let query = supabase.from('contacts').select('*').order('created_at', { ascending: false }).limit(limit);
+// ✅ ISOLAMENTO: Filtrar contatos pela unidade atual (via leads)
+    const unitId = req.unitId;
+    if (!unitId) return res.status(403).json({ error: 'unitId required' });
+
+    // Using inner join to filter contacts that belong to leads of this unit
+    let query = supabase
+      .from('contacts')
+      .select('*, leads!inner(unit_id)')
+      .eq('leads.unit_id', unitId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
     if (q) {
       const clean = String(q).replace(/[^0-9]/g, '');
       query = query.ilike('phone', `%${clean}%`);
@@ -23,7 +34,16 @@ router.get('/', async (req, res) => {
 
     const { data, error } = await query;
     if (error) return res.status(500).json({ error: error.message || 'db error' });
-    return res.json({ contacts: data });
+    
+    // Clean up the response to remove the joined leads data if not needed, or keep it.
+    // The select returns { ...contact, leads: { unit_id: ... } }
+    // We can map it back to clean contact objects if strictly needed, but usually fine.
+    const contacts = data.map(c => {
+        const { leads, ...rest } = c;
+        return rest;
+    });
+
+    return res.json({ contacts });
   } catch (err) {
     console.error('GET /contacts error:', err);
     return res.status(500).json({ error: 'internal error' });

@@ -1,7 +1,9 @@
 import express from 'express';
 import { supabase } from '../services/supabaseService.js';
 import normalizePhone from '../utils/phone.js';
-import { triggerAutomation } from '../services/automationService.js';
+import { metrics } from '../services/metricsService.js';
+import { automationEngine } from '../services/automation/engine.js';
+import { updateLeadScore } from '../services/leadScoring.js';
 import { requireAuth, requireUnitContext } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -63,14 +65,16 @@ router.get('/:id', async (req, res) => {
     const id = req.params.id;
     if (!supabase) return res.status(503).json({ error: 'supabase not configured' });
     
-    // ✅ CORREÇÃO: Buscar o lead primeiro para validar unit_id
-    const { data, error } = await supabase.from('leads').select('*').eq('id', id).single();
+    // ✅ CORREÇÃO: Filtrar diretamente na query
+    const { data, error } = await supabase
+      .from('leads')
+      .select('*')
+      .eq('id', id)
+      .eq('unit_id', req.unitId) // Enforce unit isolation
+      .single();
     if (error) return res.status(404).json({ error: error.message || 'not found' });
     
-    // ✅ SEGURANÇA: Verificar se o usuário tem acesso a esta unidade
-    if (req.user.role !== 'super_admin' && data.unit_id !== req.user.unitId) {
-      return res.status(403).json({ error: 'Forbidden: Cannot access lead from another unit' });
-    }
+    // (Check removed, query handles it)
     
     return res.json({ lead: data });
   } catch (err) {
@@ -107,8 +111,14 @@ router.post('/', requireUnitContext, async (req, res) => {
     const { data, error } = await supabase.from('leads').insert(payload).select().single();
     if (error) return res.status(500).json({ error: error.message || 'db error' });
 
-    // Trigger Automation
-    triggerAutomation(unit_id, 'new_lead', { lead: data, ...data }).catch(console.error);
+    // ✅ New Automation Engine
+    automationEngine.trigger(unit_id, 'lead_created', { lead: data });
+    
+    // ✅ Lead Scoring
+    updateLeadScore(data.id, unit_id);
+    
+    // ✅ Metric
+    metrics.increment(unit_id, 'leads_created');
 
     return res.status(201).json({ lead: data });
   } catch (err) {
@@ -125,13 +135,10 @@ router.patch('/:id', async (req, res) => {
     if (!supabase) return res.status(503).json({ error: 'supabase not configured' });
 
     // Get current lead to detect changes
-    const { data: currentLead } = await supabase.from('leads').select('*').eq('id', id).single();
-    if (!currentLead) return res.status(404).json({ error: 'Lead not found' });
-    
-    // ✅ SEGURANÇA: Validar acesso à unidade
-    if (req.user.role !== 'super_admin' && currentLead.unit_id !== req.user.unitId) {
-      return res.status(403).json({ error: 'Forbidden: Cannot update lead from another unit' });
-    }
+    // ✅ SEGURANÇA: Filtrar na query
+    const { data: currentLead } = await supabase.from('leads').select('*').eq('id', id).eq('unit_id', req.unitId).single();
+    if (!currentLead) return res.status(404).json({ error: 'Lead not found or access denied' });
+    // (Manual check removed)
 
     const { data, error } = await supabase.from('leads').update(updates).eq('id', id).select().single();
     if (error) return res.status(500).json({ error: error.message || 'db error' });
@@ -162,13 +169,10 @@ router.put('/:id', async (req, res) => {
     if (!supabase) return res.status(503).json({ error: 'supabase not configured' });
 
     // Get current lead to detect changes
-    const { data: currentLead } = await supabase.from('leads').select('*').eq('id', id).single();
-    if (!currentLead) return res.status(404).json({ error: 'Lead not found' });
-    
-    // ✅ SEGURANÇA: Validar acesso à unidade
-    if (req.user.role !== 'super_admin' && currentLead.unit_id !== req.user.unitId) {
-      return res.status(403).json({ error: 'Forbidden: Cannot update lead from another unit' });
-    }
+    // ✅ SEGURANÇA: Filtrar na query
+    const { data: currentLead } = await supabase.from('leads').select('*').eq('id', id).eq('unit_id', req.unitId).single();
+    if (!currentLead) return res.status(404).json({ error: 'Lead not found or access denied' });
+    // (Manual check removed)
 
     const { data, error } = await supabase.from('leads').update(updates).eq('id', id).select().single();
     if (error) return res.status(500).json({ error: error.message || 'db error' });

@@ -14,7 +14,6 @@ import contactsRoutes from './routes/contacts.js';
 import conversationsRoutes from './routes/conversations.js';
 import leadsRoutes from './routes/leads.js';
 import inboxRoutes from './routes/inbox.js';
-import whatsappRoutes from './routes/whatsapp.js';
 import webhookRoutes from './routes/webhooks.js';
 import automationRoutes from './routes/automation.js';
 import dashboardRoutes from './routes/dashboard.js';
@@ -22,6 +21,7 @@ import dashboardRoutes from './routes/dashboard.js';
 import whatsappConnectionRoutes from './routes/whatsappConnection.js';
 import whatsappWebhookRoutes from './routes/whatsappWebhook.js';
 import { apiLimiter, loginLimiter, webhookLimiter } from './middleware/rateLimiter.js';
+import { requestContext } from './middleware/requestContext.js';
 import { startRequeueWorker } from './services/requeueWorker.js';
 import { supabase } from './services/supabaseService.js';
 
@@ -51,8 +51,12 @@ app.set('trust proxy', 1);
 app.use(cors());
 app.use(express.json());
 
+// ✅ OBSERVABILIDADE (Contexto + Metrics) - Antes do Rate Limit
+app.use(requestContext);
+
 // ✅ RATE LIMITING GLOBAL (prevenir abuso)
 app.use(apiLimiter);
+app.use('/health', (req, res) => res.status(200).json({ status: 'ok', uptime: process.uptime() })); // HEALTH CHECK
 
 // rotas
 app.use('/webhook', zapiRoutes);     // Z-API bate aqui
@@ -62,7 +66,6 @@ app.use('/contacts', contactsRoutes);
 app.use('/conversations', conversationsRoutes);
 app.use('/leads', leadsRoutes);
 app.use('/inbox', inboxRoutes);
-app.use('/whatsapp', whatsappRoutes);
 app.use('/webhooks', webhookRoutes);
 app.use('/automation', automationRoutes);
 app.use('/dashboard', dashboardRoutes);

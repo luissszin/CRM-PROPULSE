@@ -88,35 +88,37 @@ export const requireUnitContext = (req, res, next) => {
     return res.status(401).json({ error: 'Authentication required' });
   }
 
-  // Extrair unitId da query, body ou params (suporta unitId e unit_id)
-  const requestedUnitId = req.query.unitId || req.query.unit_id || req.body.unitId || req.body.unit_id || req.params.unitId;
-
-  if (!requestedUnitId) {
-    // Se não enviou unitId, usa o do usuário (se houver)
-    if (req.user.unitId) {
-      req.unitId = req.user.unitId;
-      return next();
-    }
-    return res.status(400).json({ error: 'unitId required' });
-  }
-
-  // Super Admin pode acessar qualquer unidade
+  // 1. Super Admin: Pode definir unitId via query/body
   if (req.user.role === 'super_admin') {
-    req.unitId = requestedUnitId;
+    const requestedUnitId = req.query.unitId || req.query.unit_id || req.body.unitId || req.body.unit_id || req.params.unitId;
+    if (requestedUnitId) {
+      req.unitId = requestedUnitId; // Admin trocando de contexto
+    } else {
+      // Se não especificou, usa o contexto pessoal (se tiver) ou deixa undefined (para listar tudo)
+      req.unitId = req.user.unitId;
+    }
     return next();
   }
 
-  // Usuários regulares só podem acessar sua própria unidade
-  if (req.user.unitId !== requestedUnitId) {
-    log.security.crossTenantAttempt(req.user.id, req.user.unitId, requestedUnitId);
-    return res.status(403).json({ 
-      error: 'Forbidden: Cannot access data from another unit',
-      your_unit: req.user.unitId,
-      requested_unit: requestedUnitId
-    });
+  // 2. Usuários Regulares (Agent, Admin): Contexto é SEMPRE o do token
+  if (!req.user.unitId) {
+    // Se o user não tem unitId no token, algo está errado com o cadastro ou login
+    log.security.authFailed(req.user.email, 'User without unitId attempted action');
+    return res.status(403).json({ error: 'Forbidden: User has no assigned unit' });
   }
 
-  req.unitId = requestedUnitId;
+  // FORÇA o unitId do token, ignorando qualquer input do usuário
+  req.unitId = req.user.unitId;
+
+  // Validação extra opcional: Se ele tentou passar outro ID, logamos a tentativa (security audit)
+  const inputId = req.query.unitId || req.body.unitId || req.params.unitId;
+  if (inputId && inputId !== req.user.unitId) {
+    log.security.crossTenantAttempt(req.user.id, req.user.unitId, inputId);
+    // Não bloqueamos, apenas ignoramos e usamos o correto. Isso evita erros de UI mas garante segurança.
+    // Opcionalmente poderíamos retornar 403 se quiséssemos ser estritos.
+    // console.warn(`[Security] User ${req.user.email} tried to access unit ${inputId} but was forced to ${req.user.unitId}`);
+  }
+
   next();
 };
 

@@ -1,14 +1,19 @@
 import express from 'express';
 import { supabase } from '../services/supabaseService.js';
+import { requireAuth, requireUnitContext } from '../middleware/auth.js';
 
 const router = express.Router();
+
+// ✅ AUTENTICAÇÃO OBRIGATÓRIA
+router.use(requireAuth);
+router.use(requireUnitContext);
 
 // GET /inbox - list conversations with last message and contact
 router.get('/', async (req, res) => {
   try {
     if (!supabase) return res.status(503).json({ error: 'supabase not configured' });
 
-    const { unitId } = req.query;
+    const unitId = req.unitId; // Strict from middleware
     if (!unitId) return res.status(400).json({ error: 'unitId is required' });
 
     // get conversations

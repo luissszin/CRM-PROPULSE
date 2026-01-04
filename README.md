@@ -1,82 +1,74 @@
-PROPULSE (CRM Backend + Frontend)
-================================
+# CRM Backend (Multi-Tenant)
 
-Este projeto é um backend simples de CRM que integra com Z-API (WhatsApp) e Supabase.
+Powerful, secure, and scalable CRM backend built with Node.js, Express, and Supabase.
 
-O que foi implementado
-- Servidor Express com endpoints:
-  - `POST /messages` — envia mensagem via Z-API e persiste a mensagem enviada no Supabase
-  - `POST /webhook/zapi` — webhook para mensagens recebidas (salva no banco)
-  - `GET /admin/messages` — lista as últimas 50 mensagens (JSON) para depuração
-- Integração com Supabase usando Service Role Key (apenas no servidor)
-- Integração com Z-API com modo simulado (`ZAPI_SKIP_SEND=true`) para testes locais
- - Script de teste `backend/test/sendMessage.js` que tenta o endpoint HTTP (com retry) e faz fallback para envio direto
- - Esquema SQL em `backend/db/schema.sql` (cria `contacts`, `conversations`, `messages`, `units`, `leads`)
+## 🚀 Features
 
-Configuração rápida
-1) Copie as credenciais do Supabase (no painel do projeto → Settings → API):
-	- Project URL → `SUPABASE_URL`
-	- Service Role Key → `SUPABASE_SERVICE_ROLE_KEY`
+### Core
 
-2) Atualize o arquivo `.env` na raiz do projeto com essas chaves e as credenciais da Z-API. Exemplo:
+- **Multi-Tenant Architecture**: Strict data isolation per unit (Tenant).
+- **Authentication**: JWT-based auth (Access + Refresh Tokens).
+- **RBAC**: Role-based access control (Super Admin, Admin, Agent).
+- **Scalable**: Built for high-throughput messaging.
 
-```
-SUPABASE_URL=https://seu-projeto.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=sb_...
+### 💬 WhatsApp Integration (Multi-Provider)
 
-ZAPI_INSTANCE_ID=...
-ZAPI_TOKEN=...
-ZAPI_CLIENT_TOKEN=...
-ZAPI_SEND_URL=https://api.z-api.io/instances/ID/token/TOKEN/send-text
-```
+- **Unified API**: Single interface for Evolution API, Z-API, and Meta Cloud API.
+- **Real-time Status**: Polling and Webhook updates for connection state.
+- **Security**: HMAC Signature validation for webhooks.
 
-3) Crie o schema no Supabase
-	- Abra o SQL Editor e cole o conteúdo de `backend/db/schema.sql`, então execute.
+### 🤖 Intelligence & Automation
 
-4) Instale dependências (se ainda não instalou):
-```
-npm install
-```
+- **Automation Engine**: Rule-based triggers (`lead_created`, `message_received`) and actions (`send_message`, `change_stage`).
+- **Lead Scoring**: Automatic scoring based on engagement and status.
+- **AI Service**: Prepared for integration with OpenAI for smart replies and summarization.
 
-5) Inicie o servidor em modo simulado (não fará chamadas reais ao Z-API):
-```
-$env:ZAPI_SKIP_SEND='true'; npm run dev
-```
+### 📊 Observability
 
-Executando com Postgres local (Docker):
+- **Metrics**: Tracks `messages_sent`, `leads_created`, `api_requests`, and errors per unit per day.
+- **Performance**: Buffered metrics flushing (30s interval) to minimize DB load.
+- **Logs**: Centralized logger facade.
+- **Health Check**: `/health` endpoint for orchestration.
 
-1. Inicie Postgres:
-```
-docker-compose up -d
-```
+## 🛠️ Setup
 
-2. Aplique o schema no Postgres local (exemplo `psql`):
-```
-# aguarde o Postgres subir
-psql "postgresql://propulse:propulse@127.0.0.1:5432/propulse" -f backend/db/schema.sql
-```
+1. **Install Dependencies**
 
-6) Envie uma mensagem de teste (isso persiste no Supabase quando o schema existir):
-```
-Invoke-RestMethod -Uri 'http://127.0.0.1:3000/messages' -Method POST -ContentType 'application/json' -Body '{"phone":"61982047227","message":"seja bem vindo, \"posso lhe ajudar? \""}'
-```
+   ```bash
+   npm install
+   ```
 
-7) Ou rode o script de teste (tenta o endpoint e faz fallback):
-```
-$env:ZAPI_SKIP_SEND='true'; npm run send-test
-```
+2. **Environment Variables**
+   Copy `.env.example` to `.env` and fill in credentials.
 
-Observação importante: modo sem Client-Token
-- Para sua conveniência, se não houver `ZAPI_CLIENT_TOKEN` no `.env`, o backend irá automaticamente SIMULAR o envio (logando a ação) e retornar sucesso. Isso garante que todo o fluxo do CRM (persistência no Supabase, histórico de mensagens, UI) funcione localmente sem uma conta paga na Z-API. Quando quiser enviar de verdade, adicione `ZAPI_CLIENT_TOKEN` e remova `ZAPI_SKIP_SEND`.
+3. **Database Setup**
+   Ensure Supabase tables are created (Lead, Contact, Unit, etc.).
+   Run SQL migrations from `backend/db/migrations/`.
 
-Notas de segurança
-- Não comite o arquivo `.env` (contém segredos). O `.gitignore` já inclui `.env`.
-- A chave `SUPABASE_SERVICE_ROLE_KEY` tem permissões elevadas; mantenha-a apenas no backend.
+4. **Run Server**
 
-Próximos passos possíveis
-- Implementar re-tentativa automática para mensagens com `status='failed'` (requeue).
-- Adicionar UI administrativa para visualizar/reenviar mensagens.
-- Configurar RLS no Supabase para segurança a nível de linha.
+   ```bash
+   # Development
+   npm run dev
 
-Se quiser que eu implemente requeue automático agora, diga "implemente requeue" e eu faço as alterações e testo.
+   # Production
+   npm start
+   ```
 
+## 🧪 Testing
+
+- **Unit & Integration Tests**: `npm test`
+- **Security Validation**: `node tests/validate_security.js`
+
+## 🔒 Security
+
+- **Strict Isolation**: Middleware `requireUnitContext` enforces tenant boundaries.
+- **Rate Limiting**: API and Login endpoints are rate-limited.
+- **Payload Validation**: Zod schemas used on critical inputs.
+
+## 📂 Project Structure
+
+- `backend/routes`: API Endpoints
+- `backend/services`: Core Business Logic (WhatsApp, AI, Metrics)
+- `backend/middleware`: Auth, Rate Limiters, Context
+- `backend/db`: Migrations and Schema

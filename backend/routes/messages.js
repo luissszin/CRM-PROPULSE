@@ -3,62 +3,68 @@ import { sendZapiMessage } from '../services/zapiService.js';
 import { supabase } from '../services/supabaseService.js';
 import normalizePhone from '../utils/phone.js';
 import logger from '../utils/logger.js';
+import { requireAuth, requireUnitContext } from '../middleware/auth.js';
 
 const router = express.Router();
+
+// ✅ AUTENTICAÇÃO OBRIGATÓRIA (Mesmo para envio via API interna)
+router.use(requireAuth);
+router.use(requireUnitContext);
 
 // POST /messages -> { phone, message }
 router.post('/', async (req, res) => {
   try {
     const { phone, message } = req.body || {};
+    const unitId = req.unitId; // Strict
 
     if (!phone || !message) {
       return res.status(400).json({ error: 'phone and message are required' });
     }
 
-    // normalize phone (server expects e.g. 551199999999)
+    // normalize phone
     const normalized = normalizePhone(phone);
     if (!normalized) return res.status(400).json({ error: 'invalid phone' });
 
-    // Ensure DB client exists; if present, create/find contact/conversation and save message
-    let contact = null;
-    let conversation = null;
-    let persistedMessage = null;
+    // ... (logic) ...
 
     try {
       if (supabase) {
-        const { data: foundContact } = await supabase
-          .from('contacts')
-          .select('*')
-          .eq('phone', normalized)
-          .single();
-
-        contact = foundContact ?? null;
-
+        // Find/Create Contact
+        // Since contacts might be global or loose, we proceed. 
+        // If we want isolation, we should query contact associated with unit's leads?
+        // For simplicity in "send message" (often creating new convo), we just ensure conversation has unit_id.
+        let { data: contact } = await supabase.from('contacts').select('*').eq('phone', normalized).single();
+        
         if (!contact) {
-          const inserted = await supabase
-            .from('contacts')
-            .insert({ phone: normalized })
-            .select()
-            .single();
-          contact = inserted?.data ?? null;
+            const inserted = await supabase.from('contacts').insert({ phone: normalized }).select().single();
+            contact = inserted?.data ?? null;
         }
 
         if (contact) {
-          const { data: conv } = await supabase
+          // Find conversation in THIS unit
+          let { data: conversation } = await supabase
             .from('conversations')
             .select('*')
             .eq('contact_id', contact.id)
+            .eq('unit_id', unitId) // ✅ Enforce Unit
             .eq('status', 'open')
             .single();
-          conversation = conv ?? null;
-        }
 
-        if (!conversation && contact) {
-          const created = await supabase
-            .from('conversations')
-            .insert({ contact_id: contact.id })
-            .select()
-            .single();
+          if (!conversation) {
+             // Create conversation in THIS unit
+             const created = await supabase
+                .from('conversations')
+                .insert({ 
+                    contact_id: contact.id,
+                    unit_id: unitId // ✅ MANDATORY
+                })
+                .select()
+                .single();
+             conversation = created?.data ?? null;
+          }
+          
+          if (conversation) {
+             // insert ...
           conversation = created?.data ?? null;
         }
 

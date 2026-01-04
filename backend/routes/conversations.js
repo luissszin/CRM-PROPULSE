@@ -43,21 +43,18 @@ router.get('/:id/messages', async (req, res) => {
     const id = req.params.id;
     if (!supabase) return res.status(503).json({ error: 'supabase not configured' });
     
-    // ✅ SEGURANÇA: Validar que a conversa pertence à unidade do usuário
+    // ✅ SEGURANÇA: Filtrar na query
     const { data: conv, error: convError } = await supabase
       .from('conversations')
       .select('*')
       .eq('id', id)
+      .eq('unit_id', req.user.unitId) // Enforce unit isolation
       .single();
       
     if (convError || !conv) {
-      return res.status(404).json({ error: 'Conversation not found' });
+      return res.status(404).json({ error: 'Conversation not found or access denied' });
     }
-    
-    // ✅ Verificar acesso à unidade
-    if (req.user.role !== 'super_admin' && conv.unit_id !== req.user.unitId) {
-      return res.status(403).json({ error: 'Forbidden: Cannot access messages from another unit' });
-    }
+    // (Manual check removed)
     
     const { data, error } = await supabase.from('messages').select('*').eq('conversation_id', id).order('created_at', { ascending: true });
     if (error) return res.status(500).json({ error: error.message || 'db error' });
@@ -77,13 +74,16 @@ router.post('/:id/messages', async (req, res) => {
     if (!supabase) return res.status(503).json({ error: 'supabase not configured' });
 
     // find conversation
-    const { data: conv } = await supabase.from('conversations').select('*').eq('id', id).single();
-    if (!conv) return res.status(404).json({ error: 'conversation not found' });
-    
-    // ✅ SEGURANÇA: Validar acesso à unidade
-    if (req.user.role !== 'super_admin' && conv.unit_id !== req.user.unitId) {
-      return res.status(403).json({ error: 'Forbidden: Cannot send message to conversation from another unit' });
-    }
+    // ✅ SEGURANÇA: Filtrar na query
+    const { data: conv } = await supabase
+      .from('conversations')
+      .select('*')
+      .eq('id', id)
+      .eq('unit_id', req.user.unitId) // Enforce unit isolation
+      .single();
+
+    if (!conv) return res.status(404).json({ error: 'conversation not found or access denied' });
+    // (Manual check removed)
 
     const { data: contact } = await supabase.from('contacts').select('*').eq('id', conv.contact_id).single();
     if (!contact) return res.status(404).json({ error: 'contact not found' });
