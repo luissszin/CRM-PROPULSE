@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import api from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
+import { tokenService } from '@/lib/tokenService';
 import { socketService } from '@/lib/socketService';
 
 // Types
@@ -232,8 +233,8 @@ export const useMultiTenantStore = create<MultiTenantState>()(
           if (!user) return { success: false, redirect: '' };
 
           // Save JWT tokens
-          const { tokenService } = await import('@/lib/tokenService');
           tokenService.setTokens(accessToken, refreshToken);
+          console.log('[Login] Tokens saved to localStorage');
 
           // Ensure we have latest units data
           await get().synchronize();

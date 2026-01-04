@@ -14,6 +14,8 @@ async function request(endpoint: string, options: RequestInit = {}) {
   // Add Authorization header if token exists
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
+  } else {
+    console.warn(`[API] No token found for request to ${endpoint}`);
   }
 
   let response = await fetch(url, { ...options, headers });
