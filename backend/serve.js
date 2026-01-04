@@ -44,6 +44,9 @@ if (missing.length) {
 
 const app = express();
 
+// Trust proxy for rate limiting behind load balancers (Railway, Heroku, etc)
+app.set('trust proxy', 1);
+
 // middlewares básicos
 app.use(cors());
 app.use(express.json());
