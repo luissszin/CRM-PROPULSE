@@ -1,0 +1,58 @@
+﻿
+> vite_react_shadcn_ts@0.0.0 build
+> vite build
+
+[36mvite v5.4.19 [32mbuilding for production...[36m[39m
+transforming...
+node.exe : Browserslist: 
+browsers data 
+(caniuse-lite) is 6 
+months old. Please run:
+No linha:1 caractere:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo        
+      : NotSpecified: (B  
+  rowserslist: b...ld.    
+ Please run::String) [    
+], RemoteException
+    + FullyQualifiedError 
+   Id : NativeCommandErr  
+  or
+ 
+  npx update-browserslist-
+db@latest
+  Why you should do it 
+regularly: https://github.
+com/browserslist/update-db
+#readme
+[32mÔ£ô[39m 2550 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/[22m[32mindex.html                         [39m[1m[2m  0.94 kB[22m[1m[22m[2m Ôöé gzip:   0.43 kB[22m
+[2mdist/[22m[32massets/propulse-logo-DtVWDo4H.png  [39m[1m[2m 74.23 kB[22m[1m[22m
+[2mdist/[22m[35massets/index-D7nodf2S.css          [39m[1m[2m 73.72 kB[22m[1m[22m[2m Ôöé gzip:  12.74 kB[22m
+[2mdist/[22m[36massets/index-PkVKvv5A.js           [39m[1m[33m970.71 kB[39m[22m[2m Ôöé gzip: 281.39 kB[22m
+[33m
+(!) Some chunks are 
+larger than 500 kB after 
+minification. Consider:
+- Using dynamic import() 
+to code-split the 
+application
+- Use build.rollupOptions.
+output.manualChunks to 
+improve chunking: https://
+rollupjs.org/configuration
+-options/#output-manualchu
+nks
+- Adjust chunk size limit 
+for this warning via build
+.chunkSizeWarningLimit.[3
+9m
+[32mÔ£ô built in 7.92s[39m

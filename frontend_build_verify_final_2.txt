@@ -1,0 +1,153 @@
+﻿
+> vite_react_shadcn_ts@0.0.0 build
+> vite build
+
+[36mvite v5.4.19 [32mbuilding for production...[36m[39m
+transforming...
+node.exe : Browserslist: 
+browsers data 
+(caniuse-lite) is 6 
+months old. Please run:
+No linha:1 caractere:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo        
+      : NotSpecified: (B  
+  rowserslist: b...ld.    
+ Please run::String) [    
+], RemoteException
+    + FullyQualifiedError 
+   Id : NativeCommandErr  
+  or
+ 
+  npx update-browserslist-
+db@latest
+  Why you should do it 
+regularly: https://github.
+com/browserslist/update-db
+#readme
+src/store/multiTenantStore
+.ts (353:18): 
+"createLead" is not 
+exported by 
+"src/lib/api.ts", 
+imported by "src/store/mul
+tiTenantStore.ts".
+src/store/multiTenantStore
+.ts (375:18): 
+"updateLead" is not 
+exported by 
+"src/lib/api.ts", 
+imported by "src/store/mul
+tiTenantStore.ts".
+src/store/multiTenantStore
+.ts (442:20): 
+"sendMessage" is not 
+exported by 
+"src/lib/api.ts", 
+imported by "src/store/mul
+tiTenantStore.ts".
+src/store/crmStore.ts 
+(280:18): "updateLead" is 
+not exported by 
+"src/lib/api.ts", 
+imported by 
+"src/store/crmStore.ts".
+src/store/crmStore.ts 
+(338:18): "sendMessage" 
+is not exported by 
+"src/lib/api.ts", 
+imported by 
+"src/store/crmStore.ts".
+[32mÔ£ô[39m 2549 modules transformed.
+[31mx[39m Build failed 
+in 5.21s
+[31merror during build:
+[31msrc/App.tsx (20:7): 
+"default" is not exported 
+by "src/pages/admin/AdminM
+essages.tsx", imported by 
+"src/App.tsx".[31m
+file: [36mC:/Users/jogod/
+crm-backend/frontend/src/A
+pp.tsx:20:7[31m
+[33m
+18: import AdminUnits 
+from "./pages/admin/AdminU
+nits";
+19: import AdminUsers 
+from "./pages/admin/AdminU
+sers";
+20: import AdminMessages 
+from "./pages/admin/AdminM
+essages";
+           ^
+21: import AdminSettings 
+from "./pages/admin/AdminS
+ettings";
+22: import 
+AdminOnboarding from "./pa
+ges/admin/AdminOnboarding"
+;
+[31m
+    at getRollupError (fil
+e:///C:/Users/jogod/crm-ba
+ckend/frontend/node_module
+s/rollup/dist/es/shared/pa
+rseAst.js:395:41)
+    at error (file:///C:/U
+sers/jogod/crm-backend/fro
+ntend/node_modules/rollup/
+dist/es/shared/parseAst.js
+:391:42)
+    at Module.error (file:
+///C:/Users/jogod/crm-back
+end/frontend/node_modules/
+rollup/dist/es/shared/node
+-entry.js:15535:16)
+    at 
+Module.traceVariable (file
+:///C:/Users/jogod/crm-bac
+kend/frontend/node_modules
+/rollup/dist/es/shared/nod
+e-entry.js:15984:29)
+    at 
+ModuleScope.findVariable (
+file:///C:/Users/jogod/crm
+-backend/frontend/node_mod
+ules/rollup/dist/es/shared
+/node-entry.js:13770:39)
+    at ReturnValueScope.fi
+ndVariable (file:///C:/Use
+rs/jogod/crm-backend/front
+end/node_modules/rollup/di
+st/es/shared/node-entry.js
+:5252:38)
+    at FunctionBodyScope.f
+indVariable (file:///C:/Us
+ers/jogod/crm-backend/fron
+tend/node_modules/rollup/d
+ist/es/shared/node-entry.j
+s:5252:38)
+    at Identifier.bind (fi
+le:///C:/Users/jogod/crm-b
+ackend/frontend/node_modul
+es/rollup/dist/es/shared/n
+ode-entry.js:5035:40)
+    at 
+CallExpression.bind (file:
+///C:/Users/jogod/crm-back
+end/frontend/node_modules/
+rollup/dist/es/shared/node
+-entry.js:2851:28)
+    at 
+CallExpression.bind (file:
+///C:/Users/jogod/crm-back
+end/frontend/node_modules/
+rollup/dist/es/shared/node
+-entry.js:11235:15)[39m

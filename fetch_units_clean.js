@@ -1,0 +1,19 @@
+
+import fetch from 'node-fetch';
+
+const UNITS_URL = 'http://localhost:3000/admin/units';
+
+(async () => {
+    try {
+        const res = await fetch(UNITS_URL);
+        const data = await res.json();
+        console.log('Units found:', data.length);
+        data.forEach(u => {
+            console.log(`\nID: ${u.id}`);
+            console.log(`Name: ${u.name}`);
+            console.log(`Slug: "${u.slug}"`);
+        });
+    } catch (e) {
+        console.error('Error fetching units:', e.message);
+    }
+})();

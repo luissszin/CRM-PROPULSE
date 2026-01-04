@@ -1,0 +1,185 @@
+// Prisma Schema for CRM Backend
+// This schema defines the database models for the multi-tenant CRM system
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Unit {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String?  @unique
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  users              User[]
+  leads              Lead[]
+  conversations      Conversation[]
+  automationFlows    AutomationFlow[]
+  automationLogs     AutomationLog[]
+  whatsappConnection UnitWhatsappConnection?
+
+  @@map("units")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("agent") // super_admin | unit_admin | agent
+  unitId    String?  @map("unit_id")
+  avatar    String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  unit Unit? @relation(fields: [unitId], references: [id], onDelete: SetNull)
+
+  @@index([email])
+  @@index([unitId])
+  @@map("users")
+}
+
+model Contact {
+  id        String   @id @default(uuid())
+  phone     String   @unique
+  name      String?
+  avatar    String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  conversations Conversation[]
+  leads         Lead[]
+
+  @@index([phone])
+  @@map("contacts")
+}
+
+model UnitWhatsappConnection {
+  id             String   @id @default(uuid())
+  unitId         String   @unique @map("unit_id")
+  provider       String   // 'zapi' | 'evolution' | 'meta'
+  instanceId     String?  @map("instance_id")
+  phoneNumber    String?  @map("phone_number")
+  accessToken    String?  @map("access_token")
+  businessId     String?  @map("business_id")
+  status         String   @default("disconnected") // 'disconnected' | 'connecting' | 'connected' | 'error'
+  qrCode         String?  @map("qr_code")
+  providerConfig Json?    @map("provider_config")
+  webhookSecret  String?  @map("webhook_secret")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  unit Unit @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@index([unitId])
+  @@index([provider])
+  @@index([instanceId])
+  @@index([status])
+  @@map("unit_whatsapp_connections")
+}
+
+model Lead {
+  id         String   @id @default(uuid())
+  unitId     String   @map("unit_id")
+  contactId  String?  @map("contact_id")
+  name       String?
+  phone      String?
+  email      String?
+  source     String?
+  status     String   @default("new") // new | contacted | qualified | lost | won
+  assignedTo String?  @map("assigned_to")
+  value      Decimal? @default(0)
+  tags       String[]
+  avatar     String?
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  unit              Unit             @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  contact           Contact?         @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  conversations     Conversation[]
+  automationLogs    AutomationLog[]
+
+  @@index([unitId])
+  @@index([phone])
+  @@map("leads")
+}
+
+model Conversation {
+  id         String   @id @default(uuid())
+  contactId  String   @map("contact_id")
+  unitId     String   @map("unit_id")
+  instanceId String?  @map("instance_id")
+  leadId     String?  @map("lead_id")
+  externalId String?  @map("external_id")
+  channel    String?  // 'whatsapp', 'instagram', 'messenger', 'web'
+  status     String   @default("open")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  contact  Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  unit     Unit      @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  lead     Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  messages Message[]
+
+  @@index([contactId])
+  @@index([unitId])
+  @@index([instanceId])
+  @@map("conversations")
+}
+
+model Message {
+  id             String   @id @default(uuid())
+  conversationId String   @map("conversation_id")
+  sender         String   // 'agent' or 'customer'
+  content        String?
+  status         String   @default("pending") // pending | sent | delivered | read | failed
+  externalId     String?  @map("external_id")
+  mediaUrl       String?  @map("media_url")
+  mediaType      String?  @map("media_type")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([externalId])
+  @@map("messages")
+}
+
+model AutomationFlow {
+  id            String   @id @default(uuid())
+  unitId        String   @map("unit_id")
+  name          String
+  triggerType   String   @map("trigger_type") // e.g., 'new_lead', 'stage_change', 'new_message'
+  triggerConfig Json     @default("{}") @map("trigger_config")
+  actions       Json     @default("[]")
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  unit Unit            @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  logs AutomationLog[]
+
+  @@index([unitId])
+  @@map("automation_flows")
+}
+
+model AutomationLog {
+  id           String   @id @default(uuid())
+  flowId       String   @map("flow_id")
+  leadId       String?  @map("lead_id")
+  unitId       String   @map("unit_id")
+  status       String   // 'success', 'error'
+  errorMessage String?  @map("error_message")
+  executedAt   DateTime @default(now()) @map("executed_at")
+
+  flow AutomationFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  lead Lead?          @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  unit Unit           @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@index([flowId])
+  @@map("automation_logs")
+}
