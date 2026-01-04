@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import {
     Plus, MessageSquare, RefreshCw, LogOut, CheckCircle2,
     XCircle, QrCode, Phone, Globe, ShieldCheck, Zap, Settings2, Info,
-    AlertCircle
+    AlertCircle, Loader2, Trash2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -326,7 +326,7 @@ export default function UnitWhatsAppConfig() {
                                         </div>
                                         <div>
                                             <CardTitle className="text-base font-bold text-white">
-                                                {instance.instancename}
+                                                {instance.instance_name || instance.instanceName || instance.instancename}
                                             </CardTitle>
                                             <CardDescription className="text-xs font-medium uppercase tracking-wider opacity-70">
                                                 {instance.provider}

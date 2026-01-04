@@ -50,16 +50,14 @@ router.post('/instances', async (req, res) => {
             .from('whatsapp_instances')
             .insert({
                 unit_id: unitId,
-                instanceName,
+                instance_name: instanceName,
                 status: (provider === 'meta' || provider === 'zapi') ? 'connected' : 'disconnected',
                 provider,
                 provider_config: (provider === 'meta' || provider === 'zapi') ? providerConfig : {
                     apiUrl: providerConfig.apiUrl || process.env.EVOLUTION_API_BASE_URL,
                     apiKey: evolutionResponse.token || providerConfig.apiKey || process.env.EVOLUTION_API_KEY,
                     instanceName: instanceName
-                },
-                apiUrl: providerConfig.apiUrl || process.env.EVOLUTION_API_BASE_URL || 'http://localhost:8080',
-                apiKey: evolutionResponse.token || providerConfig.apiKey || process.env.EVOLUTION_API_KEY,
+                }
             })
             .select()
             .single();
@@ -137,9 +135,9 @@ router.get('/instances/:id/status', async (req, res) => {
         }
 
         const config = instance.provider_config || {
-            instanceName: instance.instancename,
-            apiKey: instance.apikey,
-            apiUrl: instance.apiurl
+            instanceName: instance.instance_name,
+            apiKey: instance.provider_config?.apiKey || instance.apiKey,
+            apiUrl: instance.provider_config?.apiUrl || instance.apiUrl
         };
 
         const status = await whatsapp.getInstanceStatus(config.instanceName, config.apiKey, config.apiUrl);
@@ -180,9 +178,9 @@ router.post('/send', async (req, res) => {
 
         const provider = instance.provider || 'evolution';
         const config = instance.provider_config || {
-            instanceName: instance.instancename,
-            apiKey: instance.apikey,
-            apiUrl: instance.apiurl
+            instanceName: instance.instance_name,
+            apiKey: instance.provider_config?.apiKey || instance.apiKey,
+            apiUrl: instance.provider_config?.apiUrl || instance.apiUrl
         };
 
         let result;
@@ -261,7 +259,7 @@ router.delete('/instances/:id/disconnect', async (req, res) => {
             return res.status(404).json({ error: 'Instance not found' });
         }
 
-        await whatsapp.disconnectInstance(instance.instancename, instance.apikey);
+        await whatsapp.disconnectInstance(instance.instance_name, instance.provider_config?.apiKey || instance.apiKey);
 
         await supabase
             .from('whatsapp_instances')
