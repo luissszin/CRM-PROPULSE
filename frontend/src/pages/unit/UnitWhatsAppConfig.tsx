@@ -138,13 +138,14 @@ export default function UnitWhatsAppConfig() {
         }
     };
 
-    const handleConnect = async (id: string) => {
+    const handleConnect = async (id: string) => { // id param kept for compatibility but unused if we use unitId
+        if (!currentUnit) return;
         try {
             setConnectingId(id);
             setQrCode(null);
-            const data = await connectWhatsappInstance(id);
+            const data = await connectWhatsappInstance(currentUnit.id);
             if (data.qrcode) {
-                setQrCode(data.qrcode.base64 || data.qrcode);
+                setQrCode(data.qrcode.base64 || data.qrcode || data.qrCode);
             } else if (data.status === 'connected') {
                 toast({ title: 'Já conectado!', description: 'Esta instância já está ativa.' });
                 loadInstances();
@@ -157,8 +158,9 @@ export default function UnitWhatsAppConfig() {
     };
 
     const handleRefreshStatus = async (id: string) => {
+        if (!currentUnit) return;
         try {
-            await getWhatsappInstanceStatus(id);
+            await getWhatsappInstanceStatus(currentUnit.id);
             loadInstances();
             toast({ title: 'Status sincronizado' });
         } catch (error: any) {
@@ -167,9 +169,10 @@ export default function UnitWhatsAppConfig() {
     };
 
     const handleDisconnect = async (id: string) => {
+        if (!currentUnit) return;
         if (!confirm('Tem certeza? Isso irá parar o envio de mensagens.')) return;
         try {
-            await disconnectWhatsappInstance(id);
+            await disconnectWhatsappInstance(currentUnit.id);
             loadInstances();
             toast({ title: 'Desconectado', description: 'A instância foi desconectada.' });
         } catch (error: any) {

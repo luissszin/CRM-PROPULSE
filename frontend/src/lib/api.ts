@@ -113,12 +113,40 @@ export const createUser = (data: any) => request('/admin/users', { method: 'POST
 export const login = (email: string, password: string, unitSlug?: string) => request('/admin/login', { method: 'POST', body: JSON.stringify({ email, password, unitSlug }) });
 
 // WhatsApp
-export const getWhatsappInstances = (unitId: string) => request(`/whatsapp/instances?unitId=${unitId}`);
-export const createWhatsappInstance = (data: { unitId: string, instanceName: string, provider?: string, config?: any }) => request('/whatsapp/instances', { method: 'POST', body: JSON.stringify(data) });
-export const connectWhatsappInstance = (id: string) => request(`/whatsapp/instances/${id}/connect`, { method: 'POST' });
-export const getWhatsappInstanceStatus = (id: string) => request(`/whatsapp/instances/${id}/status`);
-export const disconnectWhatsappInstance = (id: string) => request(`/whatsapp/instances/${id}/disconnect`, { method: 'DELETE' });
-export const sendWhatsappMessage = (data: { instanceId: string, phone: string, message?: string, mediaUrl?: string, mediaType?: string }) => request('/whatsapp/send', { method: 'POST', body: JSON.stringify(data) });
+// WhatsApp (Unified)
+export const getWhatsappInstances = async (unitId: string) => {
+    try {
+        const res = await request(`/units/${unitId}/whatsapp/status`);
+        return res ? [res] : [];
+    } catch (e: any) {
+        if (e.message.includes('404')) return [];
+        throw e;
+    }
+};
+
+export const createWhatsappInstance = (data: { unitId: string, instanceName: string, provider: string, config?: any }) => {
+    // Map frontend data to backend "credentials" expected format
+    const credentials = {
+        ...data.config,
+    };
+    // Only set instanceId from instanceName if it's not already in config (e.g. ZAPI provides its own ID)
+    if (!credentials.instanceId) {
+        credentials.instanceId = data.instanceName;
+    }
+    
+    return request(`/units/${data.unitId}/whatsapp/connect`, {
+        method: 'POST',
+        body: JSON.stringify({
+            provider: data.provider,
+            credentials
+        })
+    });
+};
+
+export const connectWhatsappInstance = (unitId: string) => request(`/units/${unitId}/whatsapp/qrcode`);
+export const getWhatsappInstanceStatus = (unitId: string) => request(`/units/${unitId}/whatsapp/status`);
+export const disconnectWhatsappInstance = (unitId: string) => request(`/units/${unitId}/whatsapp/disconnect`, { method: 'DELETE' });
+export const sendWhatsappMessage = (data: { unitId: string, phone: string, message?: string }) => request(`/units/${data.unitId}/whatsapp/send`, { method: 'POST', body: JSON.stringify(data) });
 
 // Automation Flow Designer
 export const getAutomationFlows = (unitId: string) => request(`/automation/flows?unitId=${unitId}`);
