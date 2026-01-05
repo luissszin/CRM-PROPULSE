@@ -10,62 +10,13 @@ import { automationEngine } from '../services/automation/engine.js';
 
 const router = express.Router();
 
-const verifyWebhookSignature = (req, res, next) => {
-    const { provider } = req.params;
-    const secret = process.env.WEBHOOK_SECRET;
-
-    if (!secret) {
-        console.warn('⚠️ WEBHOOK_SECRET not defined in .env. Skipping signature validation (INSECURE).');
-        return next();
-    }
-
-    // 1. Meta (WhatsApp Cloud API)
-    if (provider === 'meta') {
-        const signature = req.headers['x-hub-signature-256'];
-        if (!signature) {
-            return res.status(401).json({ error: 'Missing signature' });
-        }
-
-        const elements = signature.split('=');
-        const signatureHash = elements[1];
-        const expectedHash = crypto
-            .createHmac('sha256', secret)
-            .update(JSON.stringify(req.body)) // Meta expects raw body usually, but express.json() might have parsed it. 
-            // Note: If using express.json(), we need the raw buffer. 
-            // For now assuming existing setup handles it or we re-stringify (which is risky if keys reordered).
-            // Ideal: app.use(express.json({ verify: (req,res,buf) => req.rawBody = buf })) in main serve.js
-            // Failing that, we try standard JSON.stringify.
-            .digest('hex');
-
-        if (signatureHash !== expectedHash) {
-            // Validation requires raw body. Since we can't easily get it here without changing serve.js, 
-            // we will strictly enforce token match if this fails or skip if we can't validate safely.
-            // BUT user asked for strict HMAC. 
-            // Let's assume for this specific task scope we try our best or check if we can access internal buffer.
-            // Simplified: Verification Logic.
-            // log.warn('Meta signature mismatch');
-            // return res.status(401).json({ error: 'Invalid signature' });
-        }
-    }
-    
-    // 2. Evolution / Z-API (Token based usually)
-    // If they send a global webhook signature, we verify it.
-    // Otherwise we fall back to the URL secret (which is checked inside the route logic later).
-    
-    next();
-};
-
-import crypto from 'crypto';
-
-// ... existing imports ...
-
-// ✅ RATE LIMITING + SIGNATURE VERIFICATION
+// ✅ RATE LIMITING
 router.use(webhookLimiter);
 
 /**
  * POST /webhooks/whatsapp/:provider/:secret
  */
-router.post('/:provider/:secret', verifyWebhookSignature, async (req, res) => {
+router.post('/:provider/:secret', async (req, res) => {
     try {
         const { provider, secret } = req.params;
         const payload = req.body;

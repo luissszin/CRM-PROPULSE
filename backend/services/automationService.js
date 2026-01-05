@@ -81,16 +81,16 @@ async function handleSendWhatsapp(flow, action, context) {
 
     if (!phone) throw new Error('No phone number found in context');
 
-    // Find a connected instance for this unit
-    const { data: instance } = await supabase
-        .from('whatsapp_instances')
+    // Find a connected instance for this unit (USANDO A NOVA TABELA)
+    const { data: connection } = await supabase
+        .from('unit_whatsapp_connections')
         .select('*')
         .eq('unit_id', unitId)
         .eq('status', 'connected')
         .limit(1)
         .single();
 
-    if (!instance) throw new Error('No connected WhatsApp instance found');
+    if (!connection) throw new Error('No connected WhatsApp instance found');
 
     // Process message template with deep variable replacement
     let message = action.message || '';
@@ -112,15 +112,15 @@ async function handleSendWhatsapp(flow, action, context) {
     // Fallback for legacy simple variables
     message = message.replace(/{{name}}/g, context.lead?.name || context.name || '');
 
-    await whatsappService.sendTextMessage(
-        'evolution', // Default to evolution or fetch from instance
-        {
-            instanceName: instance.instanceName,
-            apiKey: instance.apiKey,
-            apiUrl: instance.apiUrl
-        },
+    // USANDO O NOVO SERVIÇO UNIFICADO
+    const { whatsappService: unifiedService } = await import('./whatsapp/whatsapp.service.js');
+    await unifiedService.sendMessage(
+        connection.provider,
+        connection.provider_config,
+        connection.instance_id,
         phone,
-        message
+        message,
+        unitId
     );
 }
 

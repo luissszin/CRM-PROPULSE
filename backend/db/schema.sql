@@ -35,22 +35,33 @@ CREATE TABLE IF NOT EXISTS users (
 );
 CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
 CREATE INDEX IF NOT EXISTS idx_users_unit ON users (unit_id);
--- Tabela de Instâncias do WhatsApp (Multi-provider)
-CREATE TABLE IF NOT EXISTS whatsapp_instances (
+-- Tabela de Conexões do WhatsApp (Multi-provider)
+CREATE TABLE IF NOT EXISTS unit_whatsapp_connections (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  unit_id UUID NOT NULL REFERENCES units(id) ON DELETE CASCADE,
-  instance_name TEXT NOT NULL,
-  provider TEXT NOT NULL DEFAULT 'evolution',
-  -- 'evolution' | 'meta' | 'zapi'
-  status TEXT NOT NULL DEFAULT 'disconnected',
-  qrcode TEXT,
-  phone TEXT,
-  provider_config JSONB,
-  -- API keys, tokens, etc.
+  unit_id UUID NOT NULL UNIQUE REFERENCES units(id) ON DELETE CASCADE,
+  provider TEXT NOT NULL CHECK (provider IN ('zapi', 'evolution', 'meta')),
+  instance_id TEXT,
+  phone_number TEXT,
+  access_token TEXT,
+  business_id TEXT,
+  status TEXT NOT NULL DEFAULT 'disconnected' CHECK (
+    status IN (
+      'disconnected',
+      'connecting',
+      'connected',
+      'error'
+    )
+  ),
+  qr_code TEXT,
+  provider_config JSONB DEFAULT '{}',
+  webhook_secret TEXT DEFAULT gen_random_uuid()::text,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
-CREATE INDEX IF NOT EXISTS idx_instances_unit ON whatsapp_instances (unit_id);
+CREATE INDEX IF NOT EXISTS idx_unit_whatsapp_unit ON unit_whatsapp_connections(unit_id);
+CREATE INDEX IF NOT EXISTS idx_unit_whatsapp_provider ON unit_whatsapp_connections(provider);
+CREATE INDEX IF NOT EXISTS idx_unit_whatsapp_instance ON unit_whatsapp_connections(instance_id);
+CREATE INDEX IF NOT EXISTS idx_unit_whatsapp_status ON unit_whatsapp_connections(status);
 -- Tabela de Leads
 CREATE TABLE IF NOT EXISTS leads (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

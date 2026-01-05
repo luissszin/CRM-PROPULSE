@@ -36,8 +36,20 @@ class MetaProvider {
     }
 
     async sendMessage(instanceName, phone, content) {
-        // TODO: Implement axios call to Graph API
-        log.warn('Meta sendMessage not fully implemented yet');
+        // TODO: Implementar axios call real para Graph API
+        log.warn('Meta sendMessage is using a mock implementation.');
+        
+        // Simulação de chamada de API da Meta
+        // const url = `${this.baseUrl}/${this.phoneNumberId}/messages`;
+        // const response = await axios.post(url, {
+        //     messaging_product: 'whatsapp',
+        //     to: phone,
+        //     text: { body: content }
+        // }, {
+        //     headers: { 'Authorization': `Bearer ${this.accessToken}` }
+        // });
+        
+        // Retorna um ID mockado
         return { id: 'meta_mock_' + Date.now() };
     }
 }
