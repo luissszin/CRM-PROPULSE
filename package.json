@@ -5,7 +5,9 @@
 	"main": "backend/serve.js",
 	"scripts": {
 		"start": "node backend/serve.js",
-		"dev": "nodemon --ignore frontend/ backend/serve.js",
+		"dev:backend": "nodemon --ignore frontend/ backend/serve.js",
+		"dev:frontend": "cd frontend && npm run dev",
+		"dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
 		"test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
 		"test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
 		"test:security": "node --experimental-vm-modules node_modules/jest/bin/jest.js backend/tests/security_isolation.test.ts",
@@ -40,6 +42,7 @@
 		"@types/jest": "^30.0.0",
 		"@types/node": "^20.19.27",
 		"@types/supertest": "^6.0.3",
+		"concurrently": "^9.2.1",
 		"jest": "^30.2.0",
 		"nodemon": "^3.1.11",
 		"supertest": "^7.1.4",

@@ -110,13 +110,11 @@ export const requireUnitContext = (req, res, next) => {
   // FORÇA o unitId do token, ignorando qualquer input do usuário
   req.unitId = req.user.unitId;
 
-  // Validação extra opcional: Se ele tentou passar outro ID, logamos a tentativa (security audit)
+  // Validação extra: Se o usuário tentou passar um unitId diferente do seu, bloqueia.
   const inputId = req.query.unitId || req.body.unitId || req.params.unitId;
-  if (inputId && inputId !== req.user.unitId) {
+  if (inputId && String(inputId) !== String(req.user.unitId)) {
     log.security.crossTenantAttempt(req.user.id, req.user.unitId, inputId);
-    // Não bloqueamos, apenas ignoramos e usamos o correto. Isso evita erros de UI mas garante segurança.
-    // Opcionalmente poderíamos retornar 403 se quiséssemos ser estritos.
-    // console.warn(`[Security] User ${req.user.email} tried to access unit ${inputId} but was forced to ${req.user.unitId}`);
+    return res.status(403).json({ error: 'Forbidden: Cross-tenant access denied' });
   }
 
   next();

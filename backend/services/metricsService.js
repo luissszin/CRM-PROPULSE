@@ -1,4 +1,4 @@
-import { supabase } from '../services/supabaseService.js';
+import { supabase } from './supabaseService.js';
 import { v4 as uuidv4 } from 'uuid';
 import log from '../utils/logger.js';
 

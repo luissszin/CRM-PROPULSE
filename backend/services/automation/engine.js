@@ -1,6 +1,6 @@
-import { supabase } from '../../supabaseService.js';
+import { supabase } from '../supabaseService.js';
 import { actions } from './actions.js';
-import { log } from '../../../utils/logger.js';
+import { log } from '../../utils/logger.js';
 
 class AutomationEngine {
     

@@ -1,6 +1,6 @@
-import { supabase } from '../supabaseService.js';
-import { log } from '../../utils/logger.js';
-import { metrics } from '../metricsService.js';
+import { supabase } from './supabaseService.js';
+import { log } from '../utils/logger.js';
+import { metrics } from './metricsService.js';
 
 /**
  * Calculates and updates lead score

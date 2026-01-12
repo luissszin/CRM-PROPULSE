@@ -1,25 +1,0 @@
-Note: Unnecessary use of -X or --request, POST is already inferred.
-* Host localhost:8080 was resolved.
-* IPv6: ::1
-* IPv4: 127.0.0.1
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0*   Trying [::1]:8080...
-* Established connection to localhost (::1 port 8080) from ::1 port 56290 
-* using HTTP/1.x
-> POST /instance/create HTTP/1.1
-> Host: localhost:8080
-> User-Agent: curl/8.16.0
-> Accept: */*
->  apikey: MINHA_API_KEY
-> Content-Type: application/json
-> Content-Length: 82
-> 
-} [82 bytes data]
-* upload completely sent off: 82 bytes
-< HTTP/1.1 400 Bad Request
-< Connection: close
-< 
-{ [0 bytes data]
-100    82    0     0  100    82      0   5337 --:--:-- --:--:-- --:--:--  5466
-* shutting down connection #0

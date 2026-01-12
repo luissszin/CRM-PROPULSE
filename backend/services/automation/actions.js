@@ -1,6 +1,6 @@
-import { supabase } from '../../supabaseService.js';
+import { supabase } from '../supabaseService.js';
 import { whatsappService } from '../whatsapp/whatsapp.service.js';
-import { log } from '../../../utils/logger.js';
+import { log } from '../../utils/logger.js';
 
 /**
  * Automation Actions Implementation

@@ -14,8 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { api } from '@/lib/api';
-import { useAuthStore } from '@/store/authStore';
+import api from '@/lib/api';
+import { useMultiTenantStore } from '@/store/multiTenantStore';
 
 const formSchema = z.object({
   provider: z.enum(['evolution', 'zapi', 'meta'], {
@@ -27,7 +27,7 @@ const formSchema = z.object({
 });
 
 export default function UnitWhatsAppConfig() {
-  const { currentUnit } = useAuthStore();
+  const { currentUnit } = useMultiTenantStore();
   const { toast } = useToast();
   
   const [loading, setLoading] = useState(true);
@@ -52,7 +52,7 @@ export default function UnitWhatsAppConfig() {
   const fetchStatus = useCallback(async () => {
     if (!currentUnit?.id) return;
     try {
-      const { data } = await api.getUnitWhatsAppStatus(currentUnit.id);
+      const { data } = await api.getWhatsappInstanceStatus(currentUnit.id);
       
       setConnectionData(data);
       if (data.status === 'not_configured') {
@@ -101,10 +101,11 @@ export default function UnitWhatsAppConfig() {
     setConnecting(true);
     try {
       // 1. Send Connect Request
-      const response = await api.connectUnitWhatsApp(currentUnit.id, {
+      const response = await api.createWhatsappInstance({
+        unitId: currentUnit.id,
+        instanceName: values.instanceId,
         provider: values.provider,
-        credentials: {
-          instanceId: values.instanceId,
+        config: {
           apiKey: values.apiKey,
           apiUrl: values.apiUrl,
         }
@@ -138,7 +139,7 @@ export default function UnitWhatsAppConfig() {
 
     setDisconnecting(true);
     try {
-      await api.disconnectUnitWhatsApp(currentUnit.id);
+      await api.disconnectWhatsappInstance(currentUnit.id);
       toast({ title: 'Desconectado', description: 'Instância desconectada com sucesso.' });
       setConnectionStatus('disconnected');
       setQrCode(null);
@@ -155,7 +156,7 @@ export default function UnitWhatsAppConfig() {
       if (!currentUnit?.id) return;
       setConnecting(true);
       try {
-          const { data } = await api.getUnitWhatsAppQrCode(currentUnit.id);
+          const { data } = await api.connectWhatsappInstance(currentUnit.id);
           if (data.qrcode) setQrCode(data.qrcode);
           toast({ title: 'QR Code Atualizado' });
       } catch (error) {
@@ -322,7 +323,7 @@ export default function UnitWhatsAppConfig() {
                          <div className="absolute inset-0 border-b-2 border-indigo-500 animate-scan pointer-events-none opacity-50"></div>
                       </div>
                       <p className="text-sm text-gray-800 text-center font-medium">
-                          Abra o WhatsApp > Aparelhos Conectados > Conectar Aparelho
+                          Abra o WhatsApp &gt; Aparelhos Conectados &gt; Conectar Aparelho
                       </p>
                       <Button variant="outline" size="sm" onClick={handleRefreshQR} className="w-full border-gray-300 text-gray-700 hover:bg-gray-50">
                           <RefreshCw className="mr-2 h-3 w-3" /> Gerar Novo QR

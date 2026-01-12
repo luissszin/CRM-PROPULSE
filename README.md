@@ -1,74 +1,97 @@
-# CRM Backend (Multi-Tenant)
+# 🚀 PROPULSE CRM - Backend & Frontend
 
-Powerful, secure, and scalable CRM backend built with Node.js, Express, and Supabase.
+Bem-vindo ao projeto PROPULSE! Este repositório contém o backend e o frontend de um CRM Multi-Tenant robusto.
+Este guia foi organizado para ajudá-lo a entender a estrutura, rodar o projeto e contribuir, mesmo que você esteja começando agora.
 
-## 🚀 Features
+---
 
-### Core
+## 📂 Estrutura do Projeto
 
-- **Multi-Tenant Architecture**: Strict data isolation per unit (Tenant).
-- **Authentication**: JWT-based auth (Access + Refresh Tokens).
-- **RBAC**: Role-based access control (Super Admin, Admin, Agent).
-- **Scalable**: Built for high-throughput messaging.
+Para manter tudo organizado, separamos o código da seguinte forma:
 
-### 💬 WhatsApp Integration (Multi-Provider)
+```
+/crm-backend
+├── backend/            # 🧠 O "Cérebro" do sistema (API Node.js/Express)
+│   ├── routes/         # Onde definimos as URLs (ex: /leads, /messages)
+│   ├── services/       # A lógica de negócio (ex: enviar WhatsApp, salvar no banco)
+│   ├── middleware/     # Guardas de segurança (ex: verificar login, limitar acessos)
+│   ├── db/             # Arquivos do banco de dados (Migrações SQL, Schemas)
+│   └── scripts/        # Scripts úteis específicos do backend
+│
+├── frontend/           # 🎨 A "Cara" do sistema (React/Vite)
+│   ├── src/            # Código fonte do site
+│   │   ├── pages/      # As telas do sistema
+│   │   ├── components/ # Botões, Inputs, Cards reutilizáveis
+│   │   ├── lib/        # Funções ajudantes (API, utilitários)
+│   │   └── store/      # Gerenciamento de estado (Zustand)
+│   └── dist/           # Versão final gerada para produção (Build)
+│
+├── dev-scripts/        # 🛠️ Ferramentas para desenvolvedores (testes manuais, diagnósticos)
+├── docs/               # 📚 Documentação detalhada e manuais
+└── package.json        # Configurações do projeto e lista de dependências
+```
 
-- **Unified API**: Single interface for Evolution API, Z-API, and Meta Cloud API.
-- **Real-time Status**: Polling and Webhook updates for connection state.
-- **Security**: HMAC Signature validation for webhooks.
+---
 
-### 🤖 Intelligence & Automation
+## 🚦 Como Rodar o Projeto
 
-- **Automation Engine**: Rule-based triggers (`lead_created`, `message_received`) and actions (`send_message`, `change_stage`).
-- **Lead Scoring**: Automatic scoring based on engagement and status.
-- **AI Service**: Prepared for integration with OpenAI for smart replies and summarization.
+### Pré-requisitos
 
-### 📊 Observability
+- Node.js instalado.
+- Arquivo `.env` configurado (peça ao líder do projeto ou copie de `.env.example`).
 
-- **Metrics**: Tracks `messages_sent`, `leads_created`, `api_requests`, and errors per unit per day.
-- **Performance**: Buffered metrics flushing (30s interval) to minimize DB load.
-- **Logs**: Centralized logger facade.
-- **Health Check**: `/health` endpoint for orchestration.
+### 1. Instalar tudo
 
-## 🛠️ Setup
+Abra o terminal na pasta raiz e rode:
 
-1. **Install Dependencies**
+```bash
+npm install
+```
 
-   ```bash
-   npm install
-   ```
+_Isso baixa as bibliotecas necessárias para o projeto funcionar._
 
-2. **Environment Variables**
-   Copy `.env.example` to `.env` and fill in credentials.
+### 2. Rodar em Modo Desenvolvimento
 
-3. **Database Setup**
-   Ensure Supabase tables are created (Lead, Contact, Unit, etc.).
-   Run SQL migrations from `backend/db/migrations/`.
+Para ligar o Backend e o Frontend ao mesmo tempo:
 
-4. **Run Server**
+```bash
+npm run dev
+```
 
-   ```bash
-   # Development
-   npm run dev
+- **Frontend**: Acesse `http://localhost:8080`
+- **Backend API**: Roda em `http://localhost:3000`
 
-   # Production
-   npm start
-   ```
+---
 
-## 🧪 Testing
+## 🛠️ Comandos Úteis
 
-- **Unit & Integration Tests**: `npm test`
-- **Security Validation**: `node tests/validate_security.js`
+| Comando         | O que faz?                                                 |
+| :-------------- | :--------------------------------------------------------- |
+| `npm run dev`   | Inicia o projeto completo (Front + Back).                  |
+| `npm run build` | Compila o Frontend para produção (pasta /dist).            |
+| `npm test`      | Roda os testes automáticos para garantir que nada quebrou. |
 
-## 🔒 Security
+---
 
-- **Strict Isolation**: Middleware `requireUnitContext` enforces tenant boundaries.
-- **Rate Limiting**: API and Login endpoints are rate-limited.
-- **Payload Validation**: Zod schemas used on critical inputs.
+## 📚 Documentação Extra
 
-## 📂 Project Structure
+Se você tiver dúvidas específicas, consulte a pasta `docs/`:
 
-- `backend/routes`: API Endpoints
-- `backend/services`: Core Business Logic (WhatsApp, AI, Metrics)
-- `backend/middleware`: Auth, Rate Limiters, Context
-- `backend/db`: Migrations and Schema
+- **INSTALLATION.md**: Guia completo de instalação do zero.
+- **WHATSAPP_INTEGRATION.md**: Como funciona o envio de mensagens.
+- **PRODUCTION_CHECKLIST.md**: O que conferir antes de colocar o site no ar.
+
+---
+
+## 💡 Dicas para Iniciantes (Junior Devs)
+
+1. **Backend Crash?**: Se o backend parar, verifique o terminal. Geralmente ele diz qual arquivo e linha deu erro.
+2. **Tela Branca?**: Abra o Console do Navegador (F12) e veja se tem erros em vermelho.
+3. **Novas Funcionalidades**:
+   - Comece criando a rota no `backend`.
+   - Teste com Postman ou Insomnia.
+   - Depois crie a tela no `frontend` que chama essa rota.
+
+---
+
+_Mantenha o código limpo e divirta-se codando!_ 🚀

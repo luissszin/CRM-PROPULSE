@@ -66,8 +66,8 @@ describe('🛡️ Security: Multi-Tenant Isolation', () => {
                 .get(`/leads/${leadB_Id}`)
                 .set('Authorization', `Bearer ${userA_Token}`);
             
-            // Deve retornar 403 Forbidden
-            expect(res.status).toBe(403);
+            // Deve retornar 403 Forbidden ou 404 Not Found (por isolamento)
+            expect([403, 404]).toContain(res.status);
         });
 
         it('should block user from listing conversations of another unit', async () => {

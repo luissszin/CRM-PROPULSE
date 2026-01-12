@@ -60,7 +60,7 @@ router.get('/', requireUnitContext, async (req, res) => {
 });
 
 // GET /leads/:id
-router.get('/:id', async (req, res) => {
+router.get('/:id', requireUnitContext, async (req, res) => {
   try {
     const id = req.params.id;
     if (!supabase) return res.status(503).json({ error: 'supabase not configured' });
@@ -128,7 +128,7 @@ router.post('/', requireUnitContext, async (req, res) => {
 });
 
 // PATCH /leads/:id -> update lead (alias for PUT)
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', requireUnitContext, async (req, res) => {
   try {
     const id = req.params.id;
     const updates = req.body || {};
@@ -162,7 +162,7 @@ router.patch('/:id', async (req, res) => {
 });
 
 // PUT /leads/:id -> update lead
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireUnitContext, async (req, res) => {
   try {
     const id = req.params.id;
     const updates = req.body || {};

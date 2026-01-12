@@ -110,6 +110,36 @@ AND EXISTS (
 ) THEN CREATE INDEX IF NOT EXISTS idx_conversations_unit_updated ON conversations(unit_id, updated_at);
 RAISE NOTICE 'Created index on conversations(unit_id, updated_at) ✓';
 END IF;
+RAISE NOTICE 'Created index on conversations(unit_id, updated_at) ✓';
+END IF;
+END $$;
+-- ============================================
+-- STEP 3.5: Add Missing Core Columns (Critical Fixes)
+-- ============================================
+DO $$ BEGIN -- Add status column to messages if it doesn't exist
+IF NOT EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_name = 'messages'
+        AND column_name = 'status'
+) THEN
+ALTER TABLE messages
+ADD COLUMN status TEXT DEFAULT 'pending' CHECK (
+        status IN ('pending', 'sent', 'failed', 'delivered', 'read')
+    );
+RAISE NOTICE 'Added column messages.status ✓';
+END IF;
+-- Add external_id column to messages if it doesn't exist
+IF NOT EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_name = 'messages'
+        AND column_name = 'external_id'
+) THEN
+ALTER TABLE messages
+ADD COLUMN external_id TEXT;
+RAISE NOTICE 'Added column messages.external_id ✓';
+END IF;
 END $$;
 -- ============================================
 -- STEP 4: Add Lead Scoring Columns (SAFE)

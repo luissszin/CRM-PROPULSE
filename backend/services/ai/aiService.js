@@ -1,4 +1,4 @@
-import { supabase } from '../../supabaseService.js';
+import { supabase } from '../supabaseService.js';
 import { log } from '../../../utils/logger.js';
 // import OpenAI from 'openai'; // TODO: Install openai package
 
