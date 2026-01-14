@@ -90,35 +90,41 @@ export const requireUnitContext = (req, res, next) => {
 
   // 1. Super Admin: Pode definir unitId via query/body
   if (req.user.role === 'super_admin') {
-    const requestedUnitId = req.query.unitId || req.query.unit_id || req.body.unitId || req.body.unit_id || req.params.unitId;
+    let requestedUnitId = req.query?.unitId || req.query?.unit_id || req.body?.unitId || req.body?.unit_id || req.params?.unitId;
+    
+    // Sanitize string "null" or "undefined"
+    if (requestedUnitId === 'null' || requestedUnitId === 'undefined') {
+      requestedUnitId = null;
+    }
+
     if (requestedUnitId) {
       req.unitId = requestedUnitId; // Admin trocando de contexto
     } else {
-      // Se não especificou, usa o contexto pessoal (se tiver) ou deixa undefined (para listar tudo)
-      req.unitId = req.user.unitId;
+      // Se não especificou, usa o contexto pessoal (se tiver)
+      req.unitId = req.user.unitId || null;
     }
     return next();
   }
 
+
   // 2. Usuários Regulares (Agent, Admin): Contexto é SEMPRE o do token
   if (!req.user.unitId) {
-    // Se o user não tem unitId no token, algo está errado com o cadastro ou login
     log.security.authFailed(req.user.email, 'User without unitId attempted action');
     return res.status(403).json({ error: 'Forbidden: User has no assigned unit' });
   }
 
-  // FORÇA o unitId do token, ignorando qualquer input do usuário
+  // Force token's unitId
   req.unitId = req.user.unitId;
 
-  // Validação extra: Se o usuário tentou passar um unitId diferente do seu, bloqueia.
-  const inputId = req.query.unitId || req.body.unitId || req.params.unitId;
-  if (inputId && String(inputId) !== String(req.user.unitId)) {
-    log.security.crossTenantAttempt(req.user.id, req.user.unitId, inputId);
-    return res.status(403).json({ error: 'Forbidden: Cross-tenant access denied' });
+  // Final sanitization
+  if (req.unitId === 'null' || req.unitId === 'undefined') {
+    req.unitId = null;
   }
 
   next();
 };
+
+
 
 // Aliases para compatibilidade
 export const authenticateToken = requireAuth;

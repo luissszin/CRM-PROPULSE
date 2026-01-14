@@ -13,10 +13,14 @@ docker rm -f evolution_api 2>$null
 # Roda o container
 Write-Host "🚀 Iniciando Evolution API..." -ForegroundColor Cyan
 docker run -d `
-  --name evolution_api `
-  -p 8080:8080 `
-  -e AUTHENTICATION_API_KEY=MINHA_API_KEY `
-  atendai/evolution-api:latest
+    --name evolution_api `
+    -p 8085:8080 `
+    -e AUTHENTICATION_API_KEY=MINHA_API_KEY `
+    atendai/evolution-api:v1.8.2
+
+
+
+
 
 if ($LastExitCode -eq 0) {
     Write-Host "✅ Container iniciado com sucesso!" -ForegroundColor Green
@@ -24,12 +28,15 @@ if ($LastExitCode -eq 0) {
     Start-Sleep -Seconds 10
     
     # Teste básico
-    $response = Invoke-WebRequest -Uri "http://localhost:8080" -Method Get -ErrorAction SilentlyContinue
+    $response = Invoke-WebRequest -Uri "http://localhost:8085" -Method Get -ErrorAction SilentlyContinue
     if ($response.StatusCode -eq 200) {
-        Write-Host "✅ API respondendo em http://localhost:8080" -ForegroundColor Green
-    } else {
+        Write-Host "✅ API respondendo em http://localhost:8085" -ForegroundColor Green
+    }
+    else {
         Write-Host "⚠️ API iniciada, mas endpoint raiz não respondeu 200. Verifique os logs: docker logs evolution_api" -ForegroundColor Yellow
     }
-} else {
+
+}
+else {
     Write-Host "❌ Falha ao iniciar container." -ForegroundColor Red
 }

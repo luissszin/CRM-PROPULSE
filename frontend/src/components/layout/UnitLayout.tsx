@@ -8,10 +8,12 @@ export function UnitLayout() {
   const { isAuthenticated, currentUser, currentUnit, setCurrentUnit, units } = useMultiTenantStore();
 
   useEffect(() => {
+    console.log('[UnitLayout] Loading unit for slug:', slug, 'Current:', currentUnit?.slug);
     if (slug && (!currentUnit || currentUnit.slug !== slug)) {
       setCurrentUnit(slug);
     }
   }, [slug, currentUnit, setCurrentUnit]);
+
 
   // Check if unit exists
   const unitExists = units.some(u => u.slug === slug);

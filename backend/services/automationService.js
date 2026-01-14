@@ -1,6 +1,7 @@
 import { supabase } from './supabaseService.js';
-import * as whatsappService from './whatsappService.js';
+import { whatsappService as unifiedService } from './whatsapp/whatsapp.service.js';
 import { emitToUnit } from './socketService.js';
+
 
 /**
  * Trigger an automation flow based on an event
@@ -113,7 +114,6 @@ async function handleSendWhatsapp(flow, action, context) {
     message = message.replace(/{{name}}/g, context.lead?.name || context.name || '');
 
     // USANDO O NOVO SERVIÇO UNIFICADO
-    const { whatsappService: unifiedService } = await import('./whatsapp/whatsapp.service.js');
     await unifiedService.sendMessage(
         connection.provider,
         connection.provider_config,
@@ -123,6 +123,7 @@ async function handleSendWhatsapp(flow, action, context) {
         unitId
     );
 }
+
 
 async function handleAddTag(flow, action, context) {
     const leadId = context.lead?.id || context.id;

@@ -51,13 +51,17 @@ router.get('/', requireUnitContext, async (req, res) => {
     query = query.eq('unit_id', unit_id);
 
     const { data, error } = await query;
-    if (error) return res.status(500).json({ error: error.message || 'db error' });
+    if (error) {
+        console.error('[Leads] DB Query Error:', error);
+        return res.status(500).json({ error: error.message || 'db error' });
+    }
     return res.json({ leads: data });
   } catch (err) {
-    console.error('GET /leads error (returning empty):', err);
-    return res.json({ leads: [] });
+    console.error('GET /leads error:', err);
+    return res.status(500).json({ error: 'internal error' });
   }
 });
+
 
 // GET /leads/:id
 router.get('/:id', requireUnitContext, async (req, res) => {
@@ -146,13 +150,13 @@ router.patch('/:id', requireUnitContext, async (req, res) => {
     // Detect stage change
     if (updates.status && updates.status !== currentLead.status) {
       console.log(`[Leads] Stage changed: ${currentLead.status} -> ${updates.status}`);
-      triggerAutomation(data.unit_id, 'stage_change', {
+      automationEngine.trigger(data.unit_id, 'stage_change', {
         lead: data,
-        ...data,
         oldStage: currentLead.status,
         newStage: updates.status
-      }).catch(console.error);
+      }).catch(err => console.error('[Automation] Trigger error:', err));
     }
+
 
     return res.json({ lead: data });
   } catch (err) {
@@ -179,13 +183,13 @@ router.put('/:id', requireUnitContext, async (req, res) => {
 
     // Detect stage change
     if (updates.status && updates.status !== currentLead.status) {
-      triggerAutomation(data.unit_id, 'stage_change', {
+      automationEngine.trigger(data.unit_id, 'stage_change', {
         lead: data,
-        ...data,
         oldStage: currentLead.status,
         newStage: updates.status
-      }).catch(console.error);
+      }).catch(err => console.error('[Automation] Trigger error:', err));
     }
+
 
     return res.json({ lead: data });
   } catch (err) {

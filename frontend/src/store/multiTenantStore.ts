@@ -195,6 +195,7 @@ export const useMultiTenantStore = create<MultiTenantState>()(
 
       // Sync Data
       synchronize: async () => {
+        const unitId = get().currentUnit?.id;
         try {
           try {
             const units = await api.getUnits();
@@ -202,7 +203,7 @@ export const useMultiTenantStore = create<MultiTenantState>()(
           } catch (e) { console.warn("Sync Units failed", e); }
 
           try {
-            const leads = await api.getLeads();
+            const leads = await api.getLeads(unitId);
             if (leads && Array.isArray(leads)) set({ leads });
           } catch (e) { console.warn("Sync Leads failed", e); }
 
@@ -216,9 +217,20 @@ export const useMultiTenantStore = create<MultiTenantState>()(
           } catch (e) { console.warn("Sync Users failed", e); }
 
           try {
-            const conversations = await api.getConversations();
+            const conversations = await api.getConversations(unitId);
             if (conversations && Array.isArray(conversations)) set({ conversations });
           } catch (e) { console.warn("Sync Conversations failed", e); }
+
+          // Refresh currentUnit if it's out of date
+          const current = get().currentUnit;
+          if (current) {
+              const fresh = (get().units || []).find(u => u.id === current.id || u.slug === current.slug);
+              if (fresh && (fresh.id !== current.id || fresh.name !== current.name)) {
+                  set({ currentUnit: fresh });
+              }
+          }
+
+
 
           // Note: Messages are usually fetched per conversation for performance, 
           // but we'll sync initial ones if available or let the view handle it.
@@ -252,7 +264,7 @@ export const useMultiTenantStore = create<MultiTenantState>()(
 
           // Handle unit-based login for agents/unit_admins
           if (user.unitId) {
-            const unit = units.find(u => u.id === user.unitId);
+            const unit = get().units.find(u => u.id === user.unitId);
             if (unit) {
               set({ currentUnit: unit });
               return { success: true, redirect: `/${unit.slug}/dashboard` };
@@ -261,12 +273,13 @@ export const useMultiTenantStore = create<MultiTenantState>()(
 
           // Fallback if slug provided
           if (unitSlug) {
-            const unit = units.find(u => u.slug === unitSlug);
+            const unit = get().units.find(u => u.slug === unitSlug);
             if (unit) {
               set({ currentUnit: unit });
               return { success: true, redirect: `/${unit.slug}/dashboard` };
             }
           }
+
 
           return { success: false, redirect: '' };
         } catch (error) {

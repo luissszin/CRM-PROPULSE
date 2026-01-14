@@ -7,6 +7,7 @@ const tables = {
   conversations: [],
   messages: [],
   whatsapp_instances: [],
+  unit_whatsapp_connections: [],
 };
 
 const idCounters = {
@@ -17,7 +18,9 @@ const idCounters = {
   conversations: 1,
   messages: 1,
   whatsapp_instances: 1,
+  unit_whatsapp_connections: 1,
 };
+
 
 function nowISO() {
   return new Date().toISOString();

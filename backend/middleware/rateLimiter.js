@@ -4,7 +4,7 @@ import { log } from '../utils/logger.js';
 // Rate limiter global (aplicado em todas as rotas da API)
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // Máximo de 100 requests por IP
+  max: 1000, // Máximo de 1000 requests por IP (aumentado para evitar bloqueio em desenvolvimento/polling)
   message: { error: 'Too many requests, please try again later.' },
   standardHeaders: true, // Retorna info de limite nos headers `RateLimit-*`
   legacyHeaders: false, // Desabilita headers `X-RateLimit-*`
@@ -17,6 +17,7 @@ export const apiLimiter = rateLimit({
     res.status(429).json({ error: 'Too many requests, please try again later.' });
   }
 });
+
 
 // Rate limiter ESTRITO para login (prevenir brute force)
 export const loginLimiter = rateLimit({

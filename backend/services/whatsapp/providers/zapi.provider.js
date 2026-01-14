@@ -72,6 +72,33 @@ class ZapiProvider {
              throw error;
         }
     }
+
+    async sendMediaMessage(instanceName, phone, mediaUrl, caption, mediaType) {
+        try {
+            let endpoint = 'send-image';
+            if (mediaType === 'video') endpoint = 'send-video';
+            if (mediaType === 'document' || mediaType === 'pdf') endpoint = 'send-document';
+
+            const url = `${this.baseUrl}/instances/${this.instanceId}/token/${this.token}/${endpoint}`;
+            const payload = {
+                phone,
+                [mediaType === 'document' ? 'document' : mediaType]: mediaUrl,
+                ...(caption && { caption })
+            };
+
+            // Z-API is special about document name
+            if (mediaType === 'document') {
+                payload.fileName = caption || 'document';
+            }
+
+            const response = await axios.post(url, payload, { headers: { 'Client-Token': this.clientToken } });
+            return { id: response.data.messageId };
+        } catch (error) {
+            log.error('[Z-API] Send Media Error:', error.response?.data || error.message);
+            throw error;
+        }
+    }
 }
 
 export default ZapiProvider;
+

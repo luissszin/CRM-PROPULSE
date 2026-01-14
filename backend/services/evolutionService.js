@@ -1,7 +1,7 @@
 // Evolution API Service
 import 'dotenv/config';
 
-const GLOBAL_BASE_URL = process.env.EVOLUTION_API_BASE_URL || 'http://localhost:8080';
+const GLOBAL_BASE_URL = process.env.EVOLUTION_API_BASE_URL || 'http://localhost:8085';
 const GLOBAL_API_KEY = process.env.EVOLUTION_API_KEY || '';
 
 /**

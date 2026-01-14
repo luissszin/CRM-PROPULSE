@@ -73,6 +73,22 @@ export class WhatsappService {
              throw error;
          }
     }
+
+    /**
+     * Send Media Message
+     */
+    async sendMediaMessage(providerType, config, instanceName, phone, mediaUrl, caption, mediaType, unitId) {
+        const provider = this.getProvider(providerType, config);
+        try {
+            const result = await provider.sendMediaMessage(instanceName, phone, mediaUrl, caption, mediaType);
+            if (unitId) metrics.increment(unitId, 'messages_sent');
+            return result;
+        } catch (error) {
+            if (unitId) metrics.increment(unitId, 'messages_failed');
+            throw error;
+        }
+    }
 }
 
 export const whatsappService = new WhatsappService();
+

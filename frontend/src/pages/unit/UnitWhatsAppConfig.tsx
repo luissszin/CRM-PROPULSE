@@ -22,9 +22,10 @@ const formSchema = z.object({
     required_error: 'Selecione um provedor de WhatsApp.',
   }),
   instanceId: z.string().min(3, 'Nome da instância deve ter pelo menos 3 caracteres'),
-  apiKey: z.string().min(10, 'Chave de API deve ter pelo menos 10 caracteres'),
-  apiUrl: z.string().url('URL inválida').optional().or(z.literal('')),
+  apiKey: z.string().min(1, 'Chave de API é obrigatória'),
+  apiUrl: z.string().optional().or(z.literal('')),
 });
+
 
 export default function UnitWhatsAppConfig() {
   const { currentUnit } = useMultiTenantStore();
@@ -49,12 +50,22 @@ export default function UnitWhatsAppConfig() {
     },
   });
 
+  // Auto-fill instance ID
+  useEffect(() => {
+    if (currentUnit?.id && !form.getValues('instanceId')) {
+      form.setValue('instanceId', `unit_${currentUnit.id.substring(0, 8)}`);
+    }
+  }, [currentUnit?.id, form]);
+
+
   const fetchStatus = useCallback(async () => {
     if (!currentUnit?.id) return;
     try {
-      const { data } = await api.getWhatsappInstanceStatus(currentUnit.id);
+      const data = await api.getWhatsappInstanceStatus(currentUnit.id);
+      if (!data) return;
       
       setConnectionData(data);
+
       if (data.status === 'not_configured') {
           setConnectionStatus('disconnected');
           setQrCode(null);
@@ -82,11 +93,27 @@ export default function UnitWhatsAppConfig() {
     fetchStatus();
   }, [fetchStatus]);
 
+  const connectionStartTime = useRef<number | null>(null);
+
   // Polling Logic
   useEffect(() => {
     if (connectionStatus === 'connecting' || connectionStatus === 'waiting_qr') {
-      pollingRef.current = setInterval(fetchStatus, 3000); // Poll every 3s when connecting
+      if (!connectionStartTime.current) connectionStartTime.current = Date.now();
+      
+      pollingRef.current = setInterval(() => {
+        // Stop polling after 60s if stuck
+        if (connectionStartTime.current && Date.now() - connectionStartTime.current > 60000) {
+           console.warn('[WhatsAppConfig] Connection timeout');
+           setConnectionStatus('disconnected');
+           setConnecting(false);
+           connectionStartTime.current = null;
+           if (pollingRef.current) clearInterval(pollingRef.current);
+           return;
+        }
+        fetchStatus();
+      }, 3000);
     } else {
+      connectionStartTime.current = null;
       if (pollingRef.current) clearInterval(pollingRef.current);
     }
 
@@ -95,13 +122,30 @@ export default function UnitWhatsAppConfig() {
     };
   }, [connectionStatus, fetchStatus]);
 
+
   const handleConnect = async (values: z.infer<typeof formSchema>) => {
-    if (!currentUnit?.id) return;
+    console.log('[WhatsAppConfig] handleConnect TRIGGERED!', values);
+    
+    if (connecting) {
+      console.warn('[WhatsAppConfig] Already connecting, ignoring click.');
+      return;
+    }
+
+    if (!currentUnit?.id) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro Crítico',
+          description: 'Unidade não identificada. Recarregue a página.',
+        });
+        return;
+    }
     
     setConnecting(true);
+    setConnectionStatus('connecting');
+    const toastId = toast({ title: 'Conectando...', description: 'Iniciando instância...' }); // Optional: keep ref if needed or just fire
+    
     try {
-      // 1. Send Connect Request
-      const response = await api.createWhatsappInstance({
+      const payload = {
         unitId: currentUnit.id,
         instanceName: values.instanceId,
         provider: values.provider,
@@ -109,38 +153,77 @@ export default function UnitWhatsAppConfig() {
           apiKey: values.apiKey,
           apiUrl: values.apiUrl,
         }
-      });
-
-      // 2. Set Immediate State based on response
-      const { connection } = response.data;
-      setConnectionStatus(connection.status);
-      if (connection.qrCode) setQrCode(connection.qrCode);
+      };
+      
+      const response = await api.createWhatsappInstance(payload);
+      
+      // Robust check for response validity
+      if (!response) throw new Error('Resposta vazia do servidor');
+      
+      const connData = response.data?.connection || response.connection || response; // Fallback safely
+      
+      if (connData.status) setConnectionStatus(connData.status);
+      if (connData.qrCode) setQrCode(connData.qrCode);
+      // Sometimes it returns success but no QR if already connected or just created
+      if (connData.status === 'connected') {
+           setQrCode(null);
+      }
 
       toast({
-        title: 'Conexão Iniciada',
-        description: 'Aguarde... gerando QR Code ou conectando.',
+        title: 'Sucesso!',
+        description: 'Processo iniciado. Aguarde o QR Code ou a confirmação.',
       });
 
     } catch (error: any) {
+      console.error('[WhatsAppConfig] Create Instance Error:', error);
+      
+      // Handle api.ts errors (which have message) and axios errors (which have response)
+      const errorMsg = error.response?.data?.error || error.message || 'Erro desconhecido';
+      // Safe access to details
+      const details = error.response?.data?.details || (error.message && error.message.includes('{') ? error.message : null);
+      
       toast({
         variant: 'destructive',
-        title: 'Erro ao conectar',
-        description: error.response?.data?.error || 'Verifique as credenciais e tente novamente.',
+        title: 'Falha na Conexão',
+        description: `Não foi possível conectar: ${errorMsg}`,
       });
+      
       setConnectionStatus('disconnected');
     } finally {
       setConnecting(false);
     }
   };
 
+
+  const onFormError = (errors: any) => {
+    // ... (keep existing)
+    console.warn('[WhatsAppConfig] Form Validation Errors:', errors);
+    const errorMessages = Object.entries(errors).map(([key, value]: [string, any]) => `${key}: ${value.message}`).join('\n');
+    toast({
+      variant: 'destructive',
+      title: 'Erro de validação',
+      description: `Verifique os campos: \n${errorMessages}`,
+    });
+  };
+
+  const resetLocalState = () => {
+    setConnecting(false);
+    setDisconnecting(false);
+    setConnectionStatus('disconnected');
+    setQrCode(null);
+    toast({ title: 'Estado reiniciado', description: 'Tente conectar novamente.' });
+  };
+
+
   const handleDisconnect = async () => {
+     // ... (keep existing, maybe add improved error handling later if needed)
     if (!currentUnit?.id) return;
     if (!confirm('Tem certeza? Isso irá parar o funcionamento do bot.')) return;
 
     setDisconnecting(true);
     try {
       await api.disconnectWhatsappInstance(currentUnit.id);
-      toast({ title: 'Desconectado', description: 'Instância desconectada com sucesso.' });
+      toast({ title: 'Desconectado', description: 'Instância removida com sucesso.' });
       setConnectionStatus('disconnected');
       setQrCode(null);
       setConnectionData(null);
@@ -156,15 +239,36 @@ export default function UnitWhatsAppConfig() {
       if (!currentUnit?.id) return;
       setConnecting(true);
       try {
-          const { data } = await api.connectWhatsappInstance(currentUnit.id);
-          if (data.qrcode) setQrCode(data.qrcode);
-          toast({ title: 'QR Code Atualizado' });
-      } catch (error) {
-          toast({ variant: 'destructive', title: 'Erro ao atualizar QR' });
+          // FIX: api.connectWhatsappInstance returns the JSON body directly, NOT { data: ... }
+          const response = await api.connectWhatsappInstance(currentUnit.id);
+          
+          if (!response) throw new Error('Erro ao obter resposta do servidor');
+
+          // Handle potential different response structures
+          const data = response.data || response;
+
+          if (data.status === 'connected') {
+              toast({ title: 'Já conectado!', description: 'O WhatsApp já está autenticado.' });
+              setConnectionStatus('connected');
+              setQrCode(null);
+              fetchStatus(); 
+          } else if (data.qrcode || data.qrCode) {
+              setQrCode(data.qrcode || data.qrCode);
+              setConnectionStatus('waiting_qr');
+              toast({ title: 'QR Code Atualizado' });
+          } else {
+             // If we got here, maybe status is 'connecting' but no QR yet
+             if (data.status) setConnectionStatus(data.status);
+             toast({ description: 'Status atualizado. Aguardando QR Code...' });
+          }
+      } catch (error: any) {
+          console.error('[WhatsAppConfig] Refresh QR Error:', error);
+          toast({ variant: 'destructive', title: 'Erro ao atualizar QR', description: error.message });
       } finally {
           setConnecting(false);
       }
   };
+
 
   if (!currentUnit) return <div className="p-8">Selecione uma unidade.</div>;
   if (loading) return <div className="p-8 flex justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>;
@@ -225,7 +329,8 @@ export default function UnitWhatsAppConfig() {
                  </div>
               ) : (
                   <Form {...form}>
-                    <form onSubmit={form.handleSubmit(handleConnect)} className="space-y-4">
+                    <form onSubmit={form.handleSubmit(handleConnect, onFormError)} className="space-y-4">
+
                       
                       <FormField
                         control={form.control}
@@ -272,10 +377,12 @@ export default function UnitWhatsAppConfig() {
                               <FormItem>
                                 <FormLabel>API Key / Token</FormLabel>
                                 <FormControl>
-                                  <Input {...field} type="password" placeholder="••••••••••••" className="bg-white/5 border-white/10" disabled={connectionStatus !== 'disconnected'} />
+                                  <Input {...field} type="password" placeholder="Chave da Evolution API" className="bg-white/5 border-white/10" disabled={connectionStatus !== 'disconnected'} />
                                 </FormControl>
+                                <FormDescription>Chave secreta da API (ApiKey)</FormDescription>
                                 <FormMessage />
                               </FormItem>
+
                             )}
                           />
                       </div>
@@ -287,19 +394,45 @@ export default function UnitWhatsAppConfig() {
                           <FormItem>
                             <FormLabel>API Base URL (Opcional)</FormLabel>
                             <FormControl>
-                              <Input {...field} placeholder="https://api.evolution..." className="bg-white/5 border-white/10" disabled={connectionStatus !== 'disconnected'}/>
+                              <Input {...field} placeholder="http://localhost:8085" className="bg-white/5 border-white/10" disabled={connectionStatus !== 'disconnected'}/>
                             </FormControl>
+                            <FormDescription>URL do servidor (Ex: http://localhost:8085)</FormDescription>
                             <FormMessage />
                           </FormItem>
+
                         )}
                       />
 
-                      <div className="pt-4">
-                        <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700" disabled={connecting}>
-                          {connecting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                          {connecting ? 'Iniciando...' : 'Salvar & Conectar'}
+                      <div className="pt-4 space-y-3">
+                        <Button 
+                          type="submit" 
+                          className="w-full bg-indigo-600 hover:bg-indigo-700 h-12 text-lg font-bold shadow-lg shadow-indigo-500/20" 
+                          onClick={() => console.log('[WhatsAppConfig] Button Clicked!')}
+                        >
+                          {connecting ? (
+                            <>
+                              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                              Conectando...
+                            </>
+                          ) : (
+                            'Salvar & Conectar'
+                          )}
                         </Button>
+                        
+                        {(connecting || disconnecting || connectionStatus !== 'disconnected') && (
+                          <div className="flex justify-center">
+                            <button 
+                              type="button"
+                              className="text-[11px] text-white/30 hover:text-indigo-400 transition-colors underline underline-offset-4"
+                              onClick={resetLocalState}
+                            >
+                              Problemas? Clique aqui para resetar o formulário
+                            </button>
+                          </div>
+                        )}
                       </div>
+
+
                     </form>
                   </Form>
               )}
@@ -309,7 +442,7 @@ export default function UnitWhatsAppConfig() {
 
         {/* QR Code / Status Panel */}
         <div className="space-y-6">
-           {connectionStatus !== 'connected' && qrCode && (
+           {connectionStatus !== 'connected' && (
               <Card className="border-white/10 bg-white/5 backdrop-blur-xl overflow-hidden animate-in zoom-in-95 duration-500">
                   <CardHeader className="bg-white/5 pb-4">
                       <CardTitle className="text-center text-lg flex items-center justify-center gap-2">
@@ -317,20 +450,33 @@ export default function UnitWhatsAppConfig() {
                       </CardTitle>
                   </CardHeader>
                   <CardContent className="flex flex-col items-center justify-center p-6 space-y-4 bg-white">
-                      <div className="relative h-64 w-64">
-                         <img src={qrCode.startsWith('data:') ? qrCode : `data:image/png;base64,${qrCode}`} alt="WhatsApp QR Code" className="h-full w-full object-contain" />
-                         {/* Scan overlay effect */}
-                         <div className="absolute inset-0 border-b-2 border-indigo-500 animate-scan pointer-events-none opacity-50"></div>
-                      </div>
-                      <p className="text-sm text-gray-800 text-center font-medium">
-                          Abra o WhatsApp &gt; Aparelhos Conectados &gt; Conectar Aparelho
-                      </p>
-                      <Button variant="outline" size="sm" onClick={handleRefreshQR} className="w-full border-gray-300 text-gray-700 hover:bg-gray-50">
-                          <RefreshCw className="mr-2 h-3 w-3" /> Gerar Novo QR
-                      </Button>
+                      {qrCode ? (
+                        <>
+                          <div className="relative h-64 w-64">
+                             <img src={qrCode.startsWith('data:') ? qrCode : `data:image/png;base64,${qrCode}`} alt="WhatsApp QR Code" className="h-full w-full object-contain" />
+                             {/* Scan overlay effect */}
+                             <div className="absolute inset-0 border-b-2 border-indigo-500 animate-scan pointer-events-none opacity-50"></div>
+                          </div>
+                          <p className="text-sm text-gray-800 text-center font-medium">
+                              Abra o WhatsApp &gt; Aparelhos Conectados &gt; Conectar Aparelho
+                          </p>
+                          <Button variant="outline" size="sm" onClick={handleRefreshQR} className="w-full border-gray-300 text-gray-700 hover:bg-gray-50">
+                              <RefreshCw className="mr-2 h-3 w-3" /> Gerar Novo QR
+                          </Button>
+                        </>
+                      ) : (
+                        <div className="flex flex-col items-center p-8 space-y-4">
+                           <Loader2 className="h-12 w-12 text-indigo-500 animate-spin" />
+                           <p className="text-gray-600 text-sm font-medium">Aguardando QR Code...</p>
+                           <Button variant="outline" size="sm" onClick={handleRefreshQR} disabled={connecting}>
+                              {connecting ? 'Iniciando...' : 'Forçar Novo QR'}
+                           </Button>
+                        </div>
+                      )}
                   </CardContent>
               </Card>
            )}
+
 
            <Card className="border-white/10 bg-white/5">
                <CardHeader>

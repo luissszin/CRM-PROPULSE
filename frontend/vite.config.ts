@@ -7,7 +7,7 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
-    port: 8080,
+    port: 5173,
     allowedHosts: true,
     proxy: {
       '/socket.io': {
@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => ({
         ws: true,
       },
       // Proxy all backend routes
-      ...['/admin', '/contacts', '/conversations', '/leads', '/inbox', '/whatsapp', '/webhooks', '/automation', '/dashboard', '/messages', '/health'].reduce((acc, route) => ({
+      ...['/admin', '/contacts', '/conversations', '/leads', '/inbox', '/whatsapp', '/webhooks', '/automation', '/dashboard', '/messages', '/health', '/units'].reduce((acc, route) => ({
         ...acc,
         [route]: {
           target: 'http://localhost:3000',
