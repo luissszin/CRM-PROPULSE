@@ -394,9 +394,9 @@ export default function UnitWhatsAppConfig() {
                           <FormItem>
                             <FormLabel>API Base URL (Opcional)</FormLabel>
                             <FormControl>
-                              <Input {...field} placeholder="http://localhost:8085" className="bg-white/5 border-white/10" disabled={connectionStatus !== 'disconnected'}/>
+                              <Input {...field} placeholder="http://localhost:8080" className="bg-white/5 border-white/10" disabled={connectionStatus !== 'disconnected'}/>
                             </FormControl>
-                            <FormDescription>URL do servidor (Ex: http://localhost:8085)</FormDescription>
+                            <FormDescription>Deixe vazio para usar configuração padrão do servidor</FormDescription>
                             <FormMessage />
                           </FormItem>
 

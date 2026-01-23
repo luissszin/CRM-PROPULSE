@@ -32,8 +32,9 @@ async function getConnection(unitId) {
 /**
  * POST /units/:unitId/whatsapp/connect
  * Connect WhatsApp to a unit (Create Instance/Get QR)
+ * Note: Does NOT use requireUnitContext to allow super_admin to configure any unit
  */
-router.post('/:unitId/whatsapp/connect', requireUnitContext, async (req, res) => {
+router.post('/:unitId/whatsapp/connect', async (req, res) => {
     const { unitId: unitParam } = req.params;
     let unitId = null;
     let instanceName = null;
@@ -51,28 +52,72 @@ router.post('/:unitId/whatsapp/connect', requireUnitContext, async (req, res) =>
         }
 
         unitId = unit.id;
-        if (req.user.role !== 'super_admin' && req.unitId !== unitId) {
-            return res.status(403).json({ error: 'Unit access denied' });
+        
+        // 2. Authorization check: super_admin can access any unit, others must match their unitId
+        console.log('[WhatsApp Connect] Authorization check:', {
+            requestedUnitId: unitId,
+            userRole: req.user.role,
+            userUnitId: req.user.unitId,
+            userEmail: req.user.email,
+            isSuperAdmin: req.user.role === 'super_admin',
+            hasUnitId: !!req.user.unitId,
+            unitIdsMatch: req.user.unitId === unitId
+        });
+        
+        if (req.user.role !== 'super_admin') {
+            if (!req.user.unitId) {
+                console.error('[WhatsApp Connect] 403: User has no assigned unit');
+                return res.status(403).json({ error: 'User has no assigned unit' });
+            }
+            if (req.user.unitId !== unitId) {
+                console.error('[WhatsApp Connect] 403: Unit mismatch', {
+                    requested: unitId,
+                    userBelongsTo: req.user.unitId
+                });
+                log.security.authFailed(req.user.email, `Attempted to configure unit ${unitId} but belongs to ${req.user.unitId}`);
+                return res.status(403).json({ error: 'Unit access denied' });
+            }
         }
+        
+        console.log('[WhatsApp Connect] ✅ Authorization passed');
 
         const { provider, credentials = {} } = req.body || {};
         if (!provider) return res.status(400).json({ error: 'Provider is required' });
 
         // 1.5 Fetch existing connection
+        console.log('[WhatsApp Connect] Fetching connection from DB...');
         let connection = await getConnection(unitId);
+        console.log('[WhatsApp Connect] Connection found:', !!connection);
 
         // 2. Setup Config safely and Sanitize InstanceName
         instanceName = credentials?.instanceId || `unit_${unitId.substring(0, 8)}`;
         instanceName = instanceName.replace(/[^a-zA-Z0-9_-]/g, '_');
 
+        // Sanitize credentials - treat empty strings as undefined to use env defaults
+        const sanitizedApiKey = credentials?.apiKey?.trim() || undefined;
+        const sanitizedApiUrl = credentials?.apiUrl?.trim() || undefined;
+
         const config = {
-            apiKey: credentials?.apiKey || process.env.EVOLUTION_API_KEY,
-            apiUrl: credentials?.apiUrl || process.env.EVOLUTION_API_BASE_URL,
-            ...credentials
+            apiKey: sanitizedApiKey || process.env.EVOLUTION_API_KEY,
+            apiUrl: sanitizedApiUrl || process.env.EVOLUTION_API_BASE_URL,
         };
 
+        // Log para debug
+        console.log('[WhatsApp Connect] Config:', {
+            unitId,
+            instanceName,
+            provider,
+            apiUrl: config.apiUrl,
+            hasApiKey: !!config.apiKey
+        });
+
         // 3. Call Service
+        console.log('[WhatsApp Connect] Calling whatsappService.createInstance...');
         const result = await whatsappService.createInstance(provider, config, instanceName);
+        console.log('[WhatsApp Connect] whatsappService.createInstance completed:', {
+            status: result.status,
+            hasQR: !!result.qrcode
+        });
 
         // 4. Update/Insert into DB
         const payload = {
@@ -86,6 +131,7 @@ router.post('/:unitId/whatsapp/connect', requireUnitContext, async (req, res) =>
         };
 
         if (connection) {
+            console.log('[WhatsApp Connect] Updating existing connection in DB...');
             const { data: updated, error: updateError } = await supabase
                 .from('unit_whatsapp_connections')
                 .update(payload)
@@ -94,7 +140,9 @@ router.post('/:unitId/whatsapp/connect', requireUnitContext, async (req, res) =>
                 .single();
             if (updateError) throw updateError;
             connection = updated;
+            console.log('[WhatsApp Connect] DB Update successful');
         } else {
+            console.log('[WhatsApp Connect] Inserting new connection in DB...');
             const { data: inserted, error: insertError } = await supabase
                 .from('unit_whatsapp_connections')
                 .insert(payload)
@@ -102,6 +150,7 @@ router.post('/:unitId/whatsapp/connect', requireUnitContext, async (req, res) =>
                 .single();
             if (insertError) throw insertError;
             connection = inserted;
+            console.log('[WhatsApp Connect] DB Insert successful');
         }
 
         if (!connection) {
@@ -126,6 +175,11 @@ router.post('/:unitId/whatsapp/connect', requireUnitContext, async (req, res) =>
         if (error.response?.status) {
             status = error.response.status;
         } 
+        // Handle Connection Refused (Provider Down)
+        else if (error.code === 'ECONNREFUSED' || error.message.includes('fetch failed')) {
+             status = 503; // Service Unavailable
+             message = 'Provider Unavailable (Evolution API is likely offline). Please ensure Docker container is running.';
+        }
         // If it's the wrapped error from provider: Error: Failed to create... {"status":401...}
         else if (message.includes('"status":')) {
             try {
@@ -157,7 +211,7 @@ router.post('/:unitId/whatsapp/connect', requireUnitContext, async (req, res) =>
  * GET /units/:unitId/whatsapp/qrcode
  * Explicitly request a QR Code generation (Connect)
  */
-router.get('/:unitId/whatsapp/qrcode', requireUnitContext, async (req, res) => {
+router.get('/:unitId/whatsapp/qrcode', async (req, res) => {
     const { unitId: unitParam } = req.params;
     let currentUnitId = null;
 
@@ -166,7 +220,8 @@ router.get('/:unitId/whatsapp/qrcode', requireUnitContext, async (req, res) => {
         if (!unit) return res.status(404).json({ error: 'Unit not found' });
         currentUnitId = unit.id;
 
-        if (req.user.role !== 'super_admin' && req.unitId !== currentUnitId) {
+        // Authorization: super_admin can access any unit
+        if (req.user.role !== 'super_admin' && req.user.unitId !== currentUnitId) {
             return res.status(403).json({ error: 'Unit access denied' });
         }
 
@@ -224,7 +279,7 @@ router.get('/:unitId/whatsapp/qrcode', requireUnitContext, async (req, res) => {
  * GET /units/:unitId/whatsapp/status
  * Get Real-time Status
  */
-router.get('/:unitId/whatsapp/status', requireUnitContext, async (req, res) => {
+router.get('/:unitId/whatsapp/status', async (req, res) => {
     const { unitId: unitParam } = req.params;
     let currentUnitId = null;
 
@@ -233,7 +288,8 @@ router.get('/:unitId/whatsapp/status', requireUnitContext, async (req, res) => {
         if (!unit) return res.status(404).json({ error: 'Unit not found' });
         currentUnitId = unit.id;
 
-        if (req.user.role !== 'super_admin' && req.unitId !== currentUnitId) {
+        // Authorization: super_admin can access any unit
+        if (req.user.role !== 'super_admin' && req.user.unitId !== currentUnitId) {
             return res.status(403).json({ error: 'Unit access denied' });
         }
 
@@ -266,9 +322,14 @@ router.get('/:unitId/whatsapp/status', requireUnitContext, async (req, res) => {
         return res.json({
             id: connection.id,
             status: connection.status,
+            reason: connection.status_reason || null,
             phone: connection.phone_number,
             qrCode: connection.status === 'connected' ? null : connection.qr_code,
-            provider: connection.provider
+            provider: connection.provider,
+            connectedAt: connection.connected_at,
+            disconnectedAt: connection.disconnected_at,
+            qrUpdatedAt: connection.qr_updated_at,
+            lastUpdate: connection.updated_at
         });
 
     } catch (error) {
@@ -287,7 +348,7 @@ router.get('/:unitId/whatsapp/status', requireUnitContext, async (req, res) => {
 /**
  * DELETE /units/:unitId/whatsapp/disconnect
  */
-router.delete('/:unitId/whatsapp/disconnect', requireUnitContext, async (req, res) => {
+router.delete('/:unitId/whatsapp/disconnect', async (req, res) => {
      const { unitId: unitParam } = req.params;
      let unitId = null;
 
@@ -295,6 +356,11 @@ router.delete('/:unitId/whatsapp/disconnect', requireUnitContext, async (req, re
         const { data: unit } = await supabase.from('units').select('id').or(`id.eq.${unitParam},slug.eq.${unitParam}`).single();
         if (!unit) return res.status(404).json({ error: 'Unit not found' });
         unitId = unit.id;
+
+        // Authorization: super_admin can access any unit
+        if (req.user.role !== 'super_admin' && req.user.unitId !== unitId) {
+            return res.status(403).json({ error: 'Unit access denied' });
+        }
 
         const connection = await getConnection(unitId);
         if (!connection) return res.status(404).json({ error: 'Connection not found' });
@@ -331,7 +397,7 @@ router.delete('/:unitId/whatsapp/disconnect', requireUnitContext, async (req, re
 /**
  * POST /units/:unitId/whatsapp/send
  */
-router.post('/:unitId/whatsapp/send', requireUnitContext, async (req, res) => {
+router.post('/:unitId/whatsapp/send', async (req, res) => {
      let currentUnitId = null;
      try {
         const { unitId: unitParam } = req.params;
@@ -341,7 +407,8 @@ router.post('/:unitId/whatsapp/send', requireUnitContext, async (req, res) => {
         if (!unit) return res.status(404).json({ error: 'Unit not found' });
         currentUnitId = unit.id;
 
-        if (req.user.role !== 'super_admin' && req.unitId !== currentUnitId) {
+        // Authorization: super_admin can access any unit
+        if (req.user.role !== 'super_admin' && req.user.unitId !== currentUnitId) {
             return res.status(403).json({ error: 'Unit access denied' });
         }
 

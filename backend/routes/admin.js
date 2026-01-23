@@ -2,8 +2,118 @@ import express from 'express';
 import bcrypt from 'bcrypt';
 import { supabase } from '../services/supabaseService.js';
 import { loginLimiter } from '../middleware/rateLimiter.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
 
 const router = express.Router();
+
+// Public routes
+router.post('/login', loginLimiter, async (req, res) => {
+  try {
+    console.log('[Auth] Login attempt:', { 
+      email: req.body?.email, 
+      hasPassword: !!req.body?.password,
+      contentType: req.headers['content-type']
+    });
+    const { email, password, unitSlug } = req.body;
+    if (!email || !password) return res.status(400).json({ error: 'Missing credentials' });
+
+    // 1. Resolve Unit if provided
+    let targetUnit = null;
+    if (unitSlug) {
+      const { data: unit, error: unitError } = await supabase
+        .from('units')
+        .select('*')
+        .eq('slug', unitSlug)
+        .single();
+
+      if (unitError || !unit) {
+        return res.status(404).json({ error: 'Unit not found' });
+      }
+      targetUnit = unit;
+    }
+
+    // 2. Get user by email
+    const { data: users, error } = await supabase.from('users').select('*').eq('email', email);
+    if (error) throw error;
+
+    if (!users || users.length === 0) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const user = users[0];
+
+    // Verify password for all users
+    const passwordValid = await bcrypt.compare(password, user.password);
+
+    if (!passwordValid) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // 4. Enforce Unit Isolation
+    if (targetUnit) {
+      if (user.role !== 'super_admin') {
+        if (user.unit_id !== targetUnit.id) {
+          return res.status(403).json({ error: 'Access denied: User does not belong to this unit' });
+        }
+      }
+    }
+
+    // Map unit_id to unitId
+    const mappedUser = {
+      ...user,
+      unitId: user.unit_id,
+      unit_id: undefined,
+      password: undefined
+    };
+
+    // Generate JWT tokens
+    const { generateTokens } = await import('../services/jwtService.js');
+    const { accessToken, refreshToken } = generateTokens(mappedUser);
+
+    return res.json({
+      user: mappedUser,
+      accessToken,
+      refreshToken,
+      targetUnit 
+    });
+  } catch (e) {
+    console.error('Login Error:', e.message);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/refresh', async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    if (!refreshToken) return res.status(400).json({ error: 'Refresh token required' });
+
+    const { verifyRefreshToken, generateAccessToken } = await import('../services/jwtService.js');
+    const userData = verifyRefreshToken(refreshToken);
+
+    const { data: users, error } = await supabase.from('users').select('*').eq('id', userData.id);
+    if (error || !users || users.length === 0) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+
+    const user = users[0];
+    const mappedUser = {
+      ...user,
+      unitId: user.unit_id,
+      unit_id: undefined,
+      password: undefined
+    };
+
+    const accessToken = generateAccessToken(mappedUser);
+    return res.json({ accessToken });
+  } catch (e) {
+    console.error('Refresh Token Error:', e.message);
+    return res.status(403).json({ error: 'Invalid or expired refresh token' });
+  }
+});
+
+// Protected routes - REQUIRE SUPER ADMIN
+router.use(requireAuth);
+router.use(requireRole(['super_admin']));
 
 // GET /admin/messages - list recent messages (last 50)
 router.get('/messages', async (req, res) => {
@@ -196,123 +306,5 @@ router.post('/users', async (req, res) => {
   }
 });
 
-// Login endpoint with password verification and JWT
-// ✅ RATE LIMITING: Máximo 5 tentativas a cada 15 minutos
-router.post('/login', loginLimiter, async (req, res) => {
-  try {
-    console.log('[Auth] Login attempt:', { 
-      email: req.body?.email, 
-      hasPassword: !!req.body?.password,
-      contentType: req.headers['content-type']
-    });
-    const { email, password, unitSlug } = req.body;
-    if (!email || !password) return res.status(400).json({ error: 'Missing credentials' });
-
-    // 1. Resolve Unit if provided
-    let targetUnit = null;
-    if (unitSlug) {
-      const { data: unit, error: unitError } = await supabase
-        .from('units')
-        .select('*')
-        .eq('slug', unitSlug)
-        .single();
-
-      if (unitError || !unit) {
-        return res.status(404).json({ error: 'Unit not found' });
-      }
-      targetUnit = unit;
-    }
-
-    // 2. Get user by email
-    const { data: users, error } = await supabase.from('users').select('*').eq('email', email);
-    if (error) throw error;
-
-    if (!users || users.length === 0) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    const user = users[0];
-
-    // Verify password for all users
-    const passwordValid = await bcrypt.compare(password, user.password);
-
-    if (!passwordValid) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    // 4. Enforce Unit Isolation
-    // If logging into a specific unit context
-    if (targetUnit) {
-      // Super Admin can access any unit
-      if (user.role !== 'super_admin') {
-        // Regular users MUST belong to this unit or be assigned to it
-        // Assuming 1:1 user-unit relationship for now based on schema (unit_id)
-        if (user.unit_id !== targetUnit.id) {
-          return res.status(403).json({ error: 'Access denied: User does not belong to this unit' });
-        }
-      }
-    } else {
-      // Global Login (no unit context)
-      // Only Super Admin should be allowed global login ideally, or we redirect them.
-      // For now, allow but frontend handles redirect.
-    }
-
-    // Map unit_id to unitId
-    const mappedUser = {
-      ...user,
-      unitId: user.unit_id,
-      unit_id: undefined,
-      password: undefined
-    };
-
-    // Generate JWT tokens
-    const { generateTokens } = await import('../services/jwtService.js');
-    const { accessToken, refreshToken } = generateTokens(mappedUser);
-
-    return res.json({
-      user: mappedUser,
-      accessToken,
-      refreshToken,
-      targetUnit // Return resolved unit info helper
-    });
-  } catch (e) {
-    console.error('Login Error:', e.message);
-    return res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Refresh token endpoint
-router.post('/refresh', async (req, res) => {
-  try {
-    const { refreshToken } = req.body;
-    if (!refreshToken) return res.status(400).json({ error: 'Refresh token required' });
-
-    // Verify refresh token
-    const { verifyRefreshToken, generateAccessToken } = await import('../services/jwtService.js');
-    const userData = verifyRefreshToken(refreshToken);
-
-    // Get fresh user data from database
-    const { data: users, error } = await supabase.from('users').select('*').eq('id', userData.id);
-    if (error || !users || users.length === 0) {
-      return res.status(401).json({ error: 'User not found' });
-    }
-
-    const user = users[0];
-    const mappedUser = {
-      ...user,
-      unitId: user.unit_id,
-      unit_id: undefined,
-      password: undefined
-    };
-
-    // Generate new access token
-    const accessToken = generateAccessToken(mappedUser);
-
-    return res.json({ accessToken });
-  } catch (e) {
-    console.error('Refresh Token Error:', e.message);
-    return res.status(403).json({ error: 'Invalid or expired refresh token' });
-  }
-});
 
 export default router;

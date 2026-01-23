@@ -1,0 +1,28 @@
+﻿ÔûÂ ­ƒøí´©Å Security: Multi-Tenant Isolation
+  ÔûÂ ÔØî Cross-Tenant Access Attempt
+    [32mÔ£ö should block user from accessing leads of another unit [90m(927.912ms)[39m[39m
+    [32mÔ£ö should block user from listing conversations of another unit [90m(251.0822ms)[39m[39m
+  [32mÔ£ö ÔØî Cross-Tenant Access Attempt [90m(1179.8434ms)[39m[39m
+  ÔûÂ Ô£à Super Admin Access
+    [32mÔ£ö should allow super admin to access any unit [90m(916.0041ms)[39m[39m
+  [32mÔ£ö Ô£à Super Admin Access [90m(916.9927ms)[39m[39m
+  ÔûÂ ­ƒöÆ Authentication Required
+    [32mÔ£ö should reject requests without token [90m(6.0665ms)[39m[39m
+    [32mÔ£ö should reject requests with invalid token [90m(3.7969ms)[39m[39m
+  [32mÔ£ö ­ƒöÆ Authentication Required [90m(10.1978ms)[39m[39m
+  ÔûÂ ­ƒÜ¿ Rate Limiting
+    [32mÔ£ö should block excessive login attempts [90m(1281.6141ms)[39m[39m
+  [32mÔ£ö ­ƒÜ¿ Rate Limiting [90m(1281.8515ms)[39m[39m
+[32mÔ£ö ­ƒøí´©Å Security: Multi-Tenant Isolation [90m(7626.1783ms)[39m[39m
+ÔûÂ ­ƒöÑ Smoke Test
+  [32mÔ£ö Server should start and respond to healthcheck [90m(68.8704ms)[39m[39m
+  [32mÔ£ö Auth middleware should reject invalid token [90m(10.462ms)[39m[39m
+[32mÔ£ö ­ƒöÑ Smoke Test [90m(80.6989ms)[39m[39m
+[34mÔä╣ tests 8[39m
+[34mÔä╣ suites 6[39m
+[34mÔä╣ pass 8[39m
+[34mÔä╣ fail 0[39m
+[34mÔä╣ cancelled 0[39m
+[34mÔä╣ skipped 0[39m
+[34mÔä╣ todo 0[39m
+[34mÔä╣ duration_ms 7983.8441[39m

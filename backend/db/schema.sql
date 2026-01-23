@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS conversations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   contact_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
   unit_id UUID NOT NULL REFERENCES units(id) ON DELETE CASCADE,
-  instance_id UUID REFERENCES whatsapp_instances(id) ON DELETE
+  instance_id UUID REFERENCES unit_whatsapp_connections(id) ON DELETE
   SET NULL,
     lead_id UUID REFERENCES leads(id) ON DELETE
   SET NULL,

@@ -1,0 +1,31 @@
+﻿file:///C:/Users/jogod/crm-backend/backend/tests/integration_real.test.js:173
+});
+^
+
+SyntaxError: Unexpected token '}'
+    at compileSourceTextModule (node:internal/modules/esm/utils:317:16)
+    at ModuleLoader.moduleStrategy (node:internal/modules/esm/translators:111:18)
+    at #translate (node:internal/modules/esm/loader:541:20)
+    at afterLoad (node:internal/modules/esm/loader:594:29)
+    at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:599:12)
+    at #createModuleJob (node:internal/modules/esm/loader:623:36)
+    at #getJobFromResolveResult (node:internal/modules/esm/loader:329:34)
+    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:294:41)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:25)
+
+Node.js v24.11.1
+[31mÔ£û backend\tests\integration_real.test.js [90m(103.2075ms)[39m[39m
+[34mÔä╣ tests 1[39m
+[34mÔä╣ suites 0[39m
+[34mÔä╣ pass 0[39m
+[34mÔä╣ fail 1[39m
+[34mÔä╣ cancelled 0[39m
+[34mÔä╣ skipped 0[39m
+[34mÔä╣ todo 0[39m
+[34mÔä╣ duration_ms 117.6868[39m
+
+[31mÔ£û failing tests:[39m
+
+test at backend\tests\integration_real.test.js:1:1
+[31mÔ£û backend\tests\integration_real.test.js [90m(103.2075ms)[39m[39m
+  'test failed'

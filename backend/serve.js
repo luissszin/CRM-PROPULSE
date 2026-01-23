@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import './config/env.js';
 import express from 'express';
 import { createServer } from 'http';
 import cors from 'cors';
@@ -7,23 +7,23 @@ import path from 'path';
 import fs from 'fs';
 import { initSocket } from './services/socketService.js';
 
-import zapiRoutes from './routes/zapi.js';
 import messageRoutes from './routes/messages.js';
 import adminRoutes from './routes/admin.js';
 import contactsRoutes from './routes/contacts.js';
 import conversationsRoutes from './routes/conversations.js';
 import leadsRoutes from './routes/leads.js';
 import inboxRoutes from './routes/inbox.js';
-import webhookRoutes from './routes/webhooks.js';
 import automationRoutes from './routes/automation.js';
 import dashboardRoutes from './routes/dashboard.js';
 // NEW: Unified WhatsApp integration routes
 import whatsappConnectionRoutes from './routes/whatsappConnection.js';
 import whatsappWebhookRoutes from './routes/whatsappWebhook.js';
+import campaignRoutes from './routes/campaigns.js';
 import { apiLimiter, loginLimiter, webhookLimiter } from './middleware/rateLimiter.js';
 import { requestContext } from './middleware/requestContext.js';
 import { startRequeueWorker } from './services/requeueWorker.js';
 import { supabase } from './services/supabaseService.js';
+import { errorHandler } from './middleware/errorHandler.js';
 
 // Global process guards to avoid crashing the whole app on unexpected errors
 process.on('unhandledRejection', (reason, promise) => {
@@ -32,15 +32,10 @@ process.on('unhandledRejection', (reason, promise) => {
 
 process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err);
-  // do not exit - try to keep the server running; log and continue
+  // In production, it's safer to exit and let a process manager (PM2/Docker) restart the app
+  process.exit(1);
 });
 
-// basic env check - warn but don't crash
-const requiredEnvs = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
-const missing = requiredEnvs.filter(k => !process.env[k]);
-if (missing.length) {
-  console.warn('Warning: missing required env vars:', missing.join(', '));
-}
 
 const app = express();
 
@@ -58,20 +53,21 @@ app.use(requestContext);
 app.use(apiLimiter);
 app.use('/health', (req, res) => res.status(200).json({ status: 'ok', uptime: process.uptime() })); // HEALTH CHECK
 
-// rotas
-app.use('/webhook', zapiRoutes);     // Z-API bate aqui
-app.use('/messages', messageRoutes); // Lovable usa isso pra enviar msg
+import legacyRoutes from './routes/legacy.js';
+
+// ... (existing routes)
+app.use(legacyRoutes); // Mounts /zapi/webhook and /webhooks
 app.use('/admin', adminRoutes);
+app.use('/messages', messageRoutes); 
 app.use('/contacts', contactsRoutes);
 app.use('/conversations', conversationsRoutes);
 app.use('/leads', leadsRoutes);
 app.use('/inbox', inboxRoutes);
-app.use('/webhooks', webhookRoutes);
+app.use('/units', whatsappConnectionRoutes);
+app.use('/webhooks/whatsapp', whatsappWebhookRoutes); // Unified & Secure
+app.use('/api/campaigns', campaignRoutes);
 app.use('/automation', automationRoutes);
 app.use('/dashboard', dashboardRoutes);
-// NEW: Unified WhatsApp integration routes
-app.use('/units', whatsappConnectionRoutes);
-app.use('/webhooks/whatsapp', whatsappWebhookRoutes);
 
 // Seed minimal demo data when using in-memory DB (helpful for local dev)
 // Comprehensive In-Memory DB Initialization
@@ -180,24 +176,24 @@ try {
   console.warn('Could not enable static frontend serving:', e?.message ?? e);
 }
 
+import { fileURLToPath } from 'url';
+
+// ... (rest of imports)
+
+// ... (app setup)
+
 // servidor
 const PORT = process.env.PORT || 3000;
 const httpServer = createServer(app);
 initSocket(httpServer);
 
-httpServer.listen(PORT, () => {
-  console.log(`🚀 Backend rodando na porta ${PORT}`);
-});
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  httpServer.listen(PORT, () => {
+    console.log(`🚀 Backend rodando na porta ${PORT}`);
+  });
+}
 
-// Centralized error-handling middleware (catches errors passed to next(err))
-app.use((err, req, res, next) => {
-  try {
-    console.error('Express error handler caught:', err);
-    if (res.headersSent) return next(err);
-    res.status(500).json({ error: 'Internal Server Error' });
-  } catch (e) {
-    console.error('Error while handling error:', e);
-    // if even the handler fails, attempt to close the response
-    try { res.sendStatus(500); } catch (_) { }
-  }
-});
+export { app, httpServer };
+
+// Centralized error-handling middleware
+app.use(errorHandler);

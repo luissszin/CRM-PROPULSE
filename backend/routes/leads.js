@@ -4,16 +4,16 @@ import normalizePhone from '../utils/phone.js';
 import { metrics } from '../services/metricsService.js';
 import { automationEngine } from '../services/automation/engine.js';
 import { updateLeadScore } from '../services/leadScoring.js';
-import { requireAuth, requireUnitContext } from '../middleware/auth.js';
+import { requireAuth, requireUnitContext, requireRole } from '../middleware/auth.js';
 
 const router = express.Router();
 
 // ✅ APLICAR AUTENTICAÇÃO EM TODAS AS ROTAS
 router.use(requireAuth);
 
-// Units
+// Units - Restricted to Super Admin
 // GET /leads/units -> list units
-router.get('/units', async (req, res) => {
+router.get('/units', requireRole(['super_admin']), async (req, res) => {
   try {
     if (!supabase) return res.status(503).json({ error: 'supabase not configured' });
     const { data, error } = await supabase.from('units').select('*').order('created_at', { ascending: false }).limit(200);
@@ -26,7 +26,7 @@ router.get('/units', async (req, res) => {
 });
 
 // POST /leads/units -> create unit
-router.post('/units', async (req, res) => {
+router.post('/units', requireRole(['super_admin']), async (req, res) => {
   try {
     const { name, slug, metadata } = req.body || {};
     if (!name) return res.status(400).json({ error: 'name required' });
@@ -48,7 +48,12 @@ router.get('/', requireUnitContext, async (req, res) => {
     const limit = parseInt(req.query.limit || '100', 10);
 
     let query = supabase.from('leads').select('*').order('created_at', { ascending: false }).limit(limit);
-    query = query.eq('unit_id', unit_id);
+    if (!unit_id) {
+        // If no unit context, return empty array for safety unless super_admin
+        if (req.user.role !== 'super_admin') return res.json({ leads: [] });
+    } else {
+        query = query.eq('unit_id', unit_id);
+    }
 
     const { data, error } = await query;
     if (error) {

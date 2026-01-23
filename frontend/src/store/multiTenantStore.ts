@@ -174,6 +174,49 @@ const staticUsers: User[] = [
   },
 ];
 
+// Mappers to handle snake_case to camelCase and field mapping
+const mapLead = (l: any): Lead => ({
+  id: l.id,
+  unitId: l.unitId || l.unit_id,
+  name: l.name,
+  email: l.email,
+  phone: l.phone,
+  company: l.company || l.metadata?.company || '',
+  value: l.value || 0,
+  stage: l.stage || l.status || 'new',
+  tags: l.tags || [],
+  avatar: l.avatar,
+  createdAt: l.createdAt ? new Date(l.createdAt) : new Date(l.created_at || Date.now()),
+  lastContact: l.lastContact ? new Date(l.lastContact) : new Date(l.updated_at || Date.now()),
+  customFieldValues: l.customFieldValues || l.metadata?.customFieldValues || {},
+  responsibleUser: l.responsibleUser || l.assigned_to || '',
+  position: l.position || l.metadata?.position || '',
+  notes: l.notes || l.metadata?.notes || ''
+});
+
+const mapConversation = (c: any): Conversation => ({
+  id: c.id,
+  unitId: c.unitId || c.unit_id,
+  leadId: c.leadId || c.lead_id,
+  lastMessage: c.lastMessage || c.last_message || '',
+  unread: c.unread || 0,
+  updatedAt: c.updatedAt ? new Date(c.updatedAt) : new Date(c.updated_at || Date.now()),
+  channel: c.channel || 'whatsapp',
+  instance_id: c.instance_id,
+  external_id: c.external_id
+});
+
+const mapMessage = (m: any): Message => ({
+  id: m.id,
+  conversationId: m.conversationId || m.conversation_id,
+  content: m.content,
+  sender: m.sender === 'agent' || m.sender === 'user' ? 'user' : (m.sender === 'customer' || m.sender === 'lead' ? 'lead' : 'bot'),
+  timestamp: m.timestamp ? new Date(m.timestamp) : new Date(m.created_at || Date.now()),
+  status: m.status,
+  media_url: m.media_url,
+  media_type: m.media_type
+});
+
 export const useMultiTenantStore = create<MultiTenantState>()(
   persist(
     (set, get) => ({
@@ -204,7 +247,9 @@ export const useMultiTenantStore = create<MultiTenantState>()(
 
           try {
             const leads = await api.getLeads(unitId);
-            if (leads && Array.isArray(leads)) set({ leads });
+            if (leads && Array.isArray(leads)) {
+              set({ leads: leads.map(mapLead) });
+            }
           } catch (e) { console.warn("Sync Leads failed", e); }
 
           try {
@@ -218,7 +263,9 @@ export const useMultiTenantStore = create<MultiTenantState>()(
 
           try {
             const conversations = await api.getConversations(unitId);
-            if (conversations && Array.isArray(conversations)) set({ conversations });
+            if (conversations && Array.isArray(conversations)) {
+              set({ conversations: conversations.map(mapConversation) });
+            }
           } catch (e) { console.warn("Sync Conversations failed", e); }
 
           // Refresh currentUnit if it's out of date
@@ -229,11 +276,6 @@ export const useMultiTenantStore = create<MultiTenantState>()(
                   set({ currentUnit: fresh });
               }
           }
-
-
-
-          // Note: Messages are usually fetched per conversation for performance, 
-          // but we'll sync initial ones if available or let the view handle it.
         } catch (error) {
           console.error("Deep Sync failed", error);
         }
@@ -302,6 +344,11 @@ export const useMultiTenantStore = create<MultiTenantState>()(
           currentUnit: null,
           selectedLead: null,
           selectedConversation: null,
+          leads: [],
+          conversations: [],
+          messages: [],
+          chatbotFlows: [],
+          searchQuery: '',
         });
       },
 
@@ -319,17 +366,9 @@ export const useMultiTenantStore = create<MultiTenantState>()(
             console.log('[Socket] New message:', data);
 
             set(state => {
-              // Normalize data from DB (snake_case to camelCase)
-              const newConv = {
-                ...data.conversation,
-                unitId: data.conversation.unit_id || data.conversation.unitId,
-                leadId: data.conversation.lead_id || data.conversation.leadId,
-              };
-
-              const newMessage = {
-                ...data.message,
-                conversationId: data.message.conversation_id || data.message.conversationId,
-              };
+              // Normalize data from DB
+              const newConv = mapConversation(data.conversation);
+              const newMessage = mapMessage(data.message);
 
               // Update conversations list
               const exists = state.conversations.some(c => c.id === newConv.id);
@@ -337,8 +376,6 @@ export const useMultiTenantStore = create<MultiTenantState>()(
                 ? state.conversations.map(c => c.id === newConv.id ? {
                   ...c,
                   ...newConv,
-                  instance_id: newConv.instance_id || c.instance_id,
-                  external_id: newConv.external_id || c.external_id,
                   unread: c.id === state.selectedConversation ? 0 : (c.unread + 1)
                 } : c)
                 : [newConv, ...state.conversations];
@@ -394,7 +431,14 @@ export const useMultiTenantStore = create<MultiTenantState>()(
           active: true
         };
         set(state => ({ units: [...state.units, newUnit] }));
-        try { await api.createUnit(unitData); } catch (e) { console.error(e); }
+        try { 
+          const response = await api.createUnit(unitData); 
+          if (response && response.unit) {
+             set(state => ({
+                units: state.units.map(u => u.slug === unitData.slug ? response.unit : u)
+             }));
+          }
+        } catch (e) { console.error(e); }
       },
 
       updateUnit: (id, updates) => {
@@ -457,13 +501,18 @@ export const useMultiTenantStore = create<MultiTenantState>()(
         };
         set(state => ({ leads: [...state.leads, newLead] }));
         try {
-          await api.createLead({
+          const response = await api.createLead({
             unit_id: leadData.unitId,
             name: leadData.name,
             phone: leadData.phone,
             email: leadData.email,
             status: leadData.stage
           });
+          if (response && response.lead) {
+            set(state => ({
+              leads: state.leads.map(l => l.id === newLead.id ? mapLead(response.lead) : l)
+            }));
+          }
         } catch (e) { console.error(e); }
       },
 
@@ -541,9 +590,9 @@ export const useMultiTenantStore = create<MultiTenantState>()(
             const instanceId = (conversation as any).instance_id;
             const phone = (conversation as any).external_id;
 
-            if (instanceId && phone) {
+            if (conversation.unitId && phone) {
               await api.sendWhatsappMessage({
-                instanceId,
+                unitId: conversation.unitId,
                 phone,
                 message: content
               });

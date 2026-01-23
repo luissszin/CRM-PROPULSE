@@ -1,8 +1,9 @@
 import jwt from 'jsonwebtoken';
 import { supabase } from '../services/supabaseService.js';
 import { log } from '../utils/logger.js';
+import { env } from '../config/env.js';
 
-const JWT_SECRET = process.env.JWT_ACCESS_SECRET || 'your-access-secret-key-change-in-production';
+const JWT_SECRET = env.jwtSecret;
 
 /**
  * Middleware: Valida JWT e anexa user ao req
@@ -111,6 +112,13 @@ export const requireUnitContext = (req, res, next) => {
   if (!req.user.unitId) {
     log.security.authFailed(req.user.email, 'User without unitId attempted action');
     return res.status(403).json({ error: 'Forbidden: User has no assigned unit' });
+  }
+
+  // Detect tentative de acesso a outra unidade
+  const requestedUnitId = req.query?.unitId || req.query?.unit_id || req.body?.unitId || req.body?.unit_id || req.params?.unitId;
+  if (requestedUnitId && requestedUnitId !== req.user.unitId && requestedUnitId !== 'undefined' && requestedUnitId !== 'null') {
+      log.security.authFailed(req.user.email, `Cross-tenant access attempt: requested ${requestedUnitId} but belongs to ${req.user.unitId}`);
+      return res.status(403).json({ error: 'Forbidden: Accessing data from another unit is not allowed' });
   }
 
   // Force token's unitId

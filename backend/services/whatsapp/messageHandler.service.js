@@ -10,13 +10,29 @@ import { log } from '../../utils/logger.js';
  */
 class MessageHandlerService {
     
-    async handleIncoming(unitId, provider, rawPayload) {
+    async handleIncoming(unitId, provider, rawPayload, connectionId = null) {
         try {
             const normalized = this.normalize(provider, rawPayload);
             if (!normalized || normalized.fromMe) return;
 
             const { phone, senderName, content, messageId, mediaUrl, mediaType, timestamp } = normalized;
             const cleanPhone = normalizePhone(phone);
+            
+            // 0. Idempotency Check (Dedupe)
+            // If message with same provider + external_id exists, skip
+            if (messageId) {
+                const { data: existing } = await supabase
+                    .from('messages')
+                    .select('id, status')
+                    .eq('external_id', messageId)
+                    .eq('provider', provider)
+                    .single();
+                
+                if (existing) {
+                    log.info(`[MessageHandler] Duplicate message deduplicated: ${messageId} (${provider})`);
+                    return { success: true, dedup: true, messageId: existing.id };
+                }
+            }
 
             log.info(`[MessageHandler] New message from ${cleanPhone} (Unit: ${unitId}, Provider: ${provider})`);
 
@@ -54,6 +70,7 @@ class MessageHandlerService {
                     .insert({
                         unit_id: unitId,
                         contact_id: contact.id,
+                        instance_id: connectionId,
                         status: 'open',
                         channel: 'whatsapp'
                     })
@@ -68,6 +85,9 @@ class MessageHandlerService {
                     .eq('id', conversation.id);
             }
 
+            if (!conversation) {
+                 console.error('[MessageHandler] Failed to create conversation!', { unitId, contact, conversation });
+            }
 
             // 3. Save Message
             const { data: savedMessage, error: msgError } = await supabase
@@ -77,9 +97,10 @@ class MessageHandlerService {
                     sender: 'customer',
                     content: content,
                     external_id: messageId,
+                    provider: provider, // Track provider for uniqueness
                     media_url: mediaUrl,
                     media_type: mediaType,
-                    status: 'delivered',
+                    status: 'received', // Initial status
                     created_at: timestamp ? new Date(timestamp * 1000) : new Date()
                 })
                 .select()
@@ -144,31 +165,100 @@ class MessageHandlerService {
 
     /**
      * Handle connection/instance status updates from webhooks
+     * Tracks: connection state, QR codes, timestamps, reasons
      */
     async handleStatusUpdate(unitId, provider, payload) {
         try {
             let status = null;
-            let phone = null;
+            let statusReason = null;
+            let qrCode = null;
+            const updatePayload = { updated_at: new Date() };
 
             if (provider === 'evolution') {
-                const { connection, qr } = payload.data || {};
-                if (qr) status = 'connecting';
-                else if (connection === 'open') status = 'connected';
-                else if (connection === 'close' || connection === 'refused') status = 'disconnected';
+                const event = payload.event;
+                
+                // QR Code Update
+                if (event === 'qrcode.updated' || event === 'qr.updated') {
+                    const qr = payload.data?.qrcode || payload.qr || payload.data?.qr;
+                    if (qr) {
+                        qrCode = typeof qr === 'string' ? qr : qr.base64 || qr.code;
+                        if (qrCode) {
+                            updatePayload.qr_code = qrCode;
+                            updatePayload.qr_updated_at = new Date();
+                            updatePayload.status = 'qr';  // Explicit QR status
+                            updatePayload.status_reason = 'waiting_scan';
+                            
+                            log.info(`[MessageHandler] QR code updated for unit ${unitId}`);
+                        }
+                    }
+                }
+                
+                // Connection State Update
+                if (event === 'connection.update') {
+                    const connectionState = payload.data?.connection || payload.data?.state || payload.connection;
+                    
+                    if (connectionState === 'open') {
+                        status = 'connected';
+                        statusReason = 'scan_completed';
+                        updatePayload.connected_at = new Date();
+                        updatePayload.qr_code = null; // Clear QR on successful connection
+                        updatePayload.disconnected_at = null;
+                    } 
+                    else if (connectionState === 'close' || connectionState === 'refused') {
+                        status = 'disconnected';
+                        statusReason = 'disconnected';
+                        updatePayload.disconnected_at = new Date();
+                        updatePayload.qr_code = null;
+                    }
+                    else if (connectionState === 'connecting') {
+                        status = 'qr';
+                        statusReason = 'initializing';
+                    }
+                    
+                    if (status) {
+                        updatePayload.status = status;
+                        updatePayload.status_reason = statusReason;
+                    }
+                }
             }
 
+            // Legacy Zapi support
             if (provider === 'zapi') {
-                if (payload.connected === true) status = 'connected';
-                if (payload.connected === false) status = 'disconnected';
+                if (payload.connected === true) {
+                    status = 'connected';
+                    statusReason = 'scan_completed';
+                    updatePayload.status = status;
+                    updatePayload.status_reason = statusReason;
+                    updatePayload.connected_at = new Date();
+                } 
+                else if (payload.connected === false) {
+                    status = 'disconnected';
+                    statusReason = 'disconnected';
+                    updatePayload.status = status;
+                    updatePayload.status_reason = statusReason;
+                    updatePayload.disconnected_at = new Date();
+                }
             }
 
-            if (status) {
+            // Apply update if we have changes
+            if (Object.keys(updatePayload).length > 1) { // More than just updated_at
+                log.info(`[MessageHandler] Updating connection status for unit ${unitId}:`, {
+                    status: updatePayload.status,
+                    reason: updatePayload.status_reason,
+                    hasQr: !!updatePayload.qr_code
+                });
+                
                 await supabase
                     .from('unit_whatsapp_connections')
-                    .update({ status, updated_at: new Date() })
+                    .update(updatePayload)
                     .eq('unit_id', unitId);
                 
-                emitToUnit(unitId, 'whatsapp_status', { status });
+                // Emit real-time event to frontend
+                emitToUnit(unitId, 'whatsapp_status', { 
+                    status: updatePayload.status || 'unknown',
+                    reason: updatePayload.status_reason,
+                    qrCode: updatePayload.qr_code
+                });
             }
         } catch (error) {
             log.error('[MessageHandler] Status Update Error:', error);
@@ -176,39 +266,70 @@ class MessageHandlerService {
     }
 
     /**
-     * Handle connection/instance status updates from webhooks
+     * Handle message status updates (delivered, read, failed)
+     * Supports race conditions (status arrives before message)
      */
-    async handleStatusUpdate(unitId, provider, payload) {
+    async handleMessageStatusUpdate(unitId, provider, payload) {
         try {
-            let status = null;
+            if (provider !== 'evolution') return; // Only Evolution supports this currently
 
-            if (provider === 'evolution') {
-                const event = payload.event;
-                if (event === 'connection.update') {
-                    const { connection, qr } = payload.data || {};
-                    if (qr) status = 'connecting';
-                    else if (connection === 'open') status = 'connected';
-                    else if (connection === 'close' || connection === 'refused') status = 'disconnected';
+            const updates = payload.data?.messages || [];
+            
+            for (const statusUpdate of updates) {
+                const externalId = statusUpdate.key?.id;
+                if (!externalId) continue;
+
+                // Map Evolution status to our statuses
+                const evolutionStatus = statusUpdate.status;
+                let ourStatus = null;
+
+                if (evolutionStatus === 'SERVER_ACK' || evolutionStatus === 'DELIVERY_ACK') {
+                    ourStatus = 'delivered';
+                } else if (evolutionStatus === 'READ') {
+                    ourStatus = 'read';
+                } else if (evolutionStatus === 'ERROR' || evolutionStatus === 'FAILED') {
+                    ourStatus = 'failed';
+                }
+
+                if (!ourStatus) continue;
+
+                // Update message if it exists
+                const { data: existing } = await supabase
+                    .from('messages')
+                    .select('id, status')
+                    .eq('external_id', externalId)
+                    .eq('provider', provider)
+                    .single();
+
+                if (existing) {
+                    // Only update if new status is "higher" (sent -> delivered -> read)
+                    const statusHierarchy = { 'queued': 0, 'sent': 1, 'delivered': 2, 'read': 3, 'failed': -1 };
+                    const currentLevel = statusHierarchy[existing.status] || 0;
+                    const newLevel = statusHierarchy[ourStatus] || 0;
+
+                    if (newLevel > currentLevel || ourStatus === 'failed') {
+                        await supabase
+                            .from('messages')
+                            .update({ status: ourStatus })
+                            .eq('id', existing.id);
+                        
+                        log.info(`[MessageHandler] Message ${externalId} status: ${existing.status} -> ${ourStatus}`);
+                        
+                        // Emit status update to frontend
+                        emitToUnit(unitId, 'message_status_updated', {
+                            messageId: existing.id,
+                            externalId,
+                            status: ourStatus
+                        });
+                    }
+                } else {
+                    // Race condition: status arrived before message
+                    // Store in a temporary status cache if needed, or just log
+                    log.warn(`[MessageHandler] Status update for unknown message: ${externalId}, status: ${ourStatus}`);
                 }
             }
-
-            if (provider === 'zapi') {
-                // Z-API status payload varies
-                if (payload.connected === true) status = 'connected';
-                else if (payload.connected === false) status = 'disconnected';
-            }
-
-            if (status) {
-                log.info(`[MessageHandler] Updating status for unit ${unitId} to ${status}`);
-                await supabase
-                    .from('unit_whatsapp_connections')
-                    .update({ status, updated_at: new Date() })
-                    .eq('unit_id', unitId);
-                
-                emitToUnit(unitId, 'whatsapp_status', { status });
-            }
         } catch (error) {
-            log.error('[MessageHandler] Status Update Error:', error);
+            log.error('[MessageHandler] Message Status Update Error:', error);
         }
     }
 

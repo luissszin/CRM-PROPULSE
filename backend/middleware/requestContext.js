@@ -11,21 +11,28 @@ export const requestContext = (req, res, next) => {
         startTime: Date.now()
     };
     
+    // Helper to mask secrets in URL
+    const safeUrl = req.originalUrl.replace(/\/webhooks\/whatsapp\/([^\/]+)\/([^\/?]+)/, '/webhooks/whatsapp/$1/[MASKED]');
+
     // Log Request Start
-    // log.info(`[REQ] ${req.method} ${req.originalUrl}`, { requestId: req.context.requestId });
+    log.info(`[REQ] ${req.method} ${safeUrl}`, { 
+        requestId: req.context.requestId,
+        ip: req.ip 
+    });
 
     // Hook into response finish
     res.on('finish', () => {
         const duration = Date.now() - req.context.startTime;
-        const unitId = req.unitId || req.user?.unitId;
-        const userId = req.user?.id;
+        const unitId = req.unitId || req.user?.unitId || 'anon';
+        const userId = req.user?.id || 'anon';
         
-        // Log Request End
-        // log.info(`[RES] ${req.method} ${req.originalUrl} ${res.statusCode} (${duration}ms)`, { 
-        //     requestId: req.context.requestId,
-        //     unitId,
-        //     userId
-        // });
+        log.info(`[RES] ${req.method} ${safeUrl}`, { 
+            requestId: req.context.requestId,
+            status: res.statusCode,
+            duration,
+            unitId,
+            userId
+        });
 
         // Record Metrics
         if (unitId) {

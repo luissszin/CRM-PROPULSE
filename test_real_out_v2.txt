@@ -1,0 +1,45 @@
+﻿Supabase client initialized
+ÔûÂ ­ƒÜÇ Real Integration Flow Tests
+  ÔûÂ ­ƒöæ Auth & Access Control (Leads)
+    [32mÔ£ö GET /leads requires auth [90m(37.8673ms)[39m[39m
+    [32mÔ£ö GET /leads accepts valid token [90m(1413.5774ms)[39m[39m
+    [32mÔ£ö GET /leads with invalid role/permission (cross-tenant check) [90m(303.646ms)[39m[39m
+  [32mÔ£ö ­ƒöæ Auth & Access Control (Leads) [90m(1755.896ms)[39m[39m
+  ÔûÂ ­ƒôí WhatsApp Webhooks
+    [32mÔ£ö POST /webhooks/whatsapp/evolution/:secret with INVALID secret returns 401 [90m(233.9596ms)[39m[39m
+    [32mÔ£ö POST /webhooks/whatsapp/invalid_provider/:secret returns 400 [90m(7.9731ms)[39m[39m
+    [31mÔ£û POST /webhooks/whatsapp/evolution/:secret with VALID payload returns 200 [90m(3390.4178ms)[39m[39m
+  [31mÔ£û ­ƒôí WhatsApp Webhooks [90m(3634.2674ms)[39m[39m
+  ÔûÂ ­ƒøí´©Å Rate Limits
+    [32mÔ£ö Should BLOCK requests without bypass header when flooded [90m(1263.2135ms)[39m[39m
+    [32mÔ£ö Should ALLOW requests WITH bypass header even if flooded [90m(2048.7688ms)[39m[39m
+  [32mÔ£ö ­ƒøí´©Å Rate Limits [90m(3312.3081ms)[39m[39m
+[31mÔ£û ­ƒÜÇ Real Integration Flow Tests [90m(10751.1392ms)[39m[39m
+[34mÔä╣ tests 8[39m
+[34mÔä╣ suites 4[39m
+[34mÔä╣ pass 7[39m
+[34mÔä╣ fail 1[39m
+[34mÔä╣ cancelled 0[39m
+[34mÔä╣ skipped 0[39m
+[34mÔä╣ todo 0[39m
+[34mÔä╣ duration_ms 11331.4034[39m
+
+[31mÔ£û failing tests:[39m
+
+test at backend\tests\integration_real.test.js:116:9
+[31mÔ£û POST /webhooks/whatsapp/evolution/:secret with VALID payload returns 200 [90m(3390.4178ms)[39m[39m
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  500 !== 200
+  
+      at TestContext.<anonymous> (file:///C:/Users/jogod/crm-backend/backend/tests/integration_real.test.js:134:20)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 500,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

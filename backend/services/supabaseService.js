@@ -4,7 +4,8 @@ import { from as memFrom, tables as memTables } from './inmemoryDb.js';
 
 let supabase = null;
 try {
-  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  // Force in-memory for tests to ensure isolation and speed
+  if (process.env.NODE_ENV !== 'test' && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     supabase = createClient(
       process.env.SUPABASE_URL,
       process.env.SUPABASE_SERVICE_ROLE_KEY

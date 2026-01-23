@@ -1,0 +1,14 @@
+﻿Supabase environment variables missing; using in-memory DB for development.
+Initializing In-Memory DB...
+[INFO] [requeueWorker] started
+Serving frontend from C:\Users\jogod\crm-backend\frontend\dist
+Created table: units
+[32mÔ£ö backend\tests\integration_real.test.js [90m(3059.4728ms)[39m[39m
+[34mÔä╣ tests 1[39m
+[34mÔä╣ suites 0[39m
+[34mÔä╣ pass 1[39m
+[34mÔä╣ fail 0[39m
+[34mÔä╣ cancelled 0[39m
+[34mÔä╣ skipped 0[39m
+[34mÔä╣ todo 0[39m
+[34mÔä╣ duration_ms 3073.6724[39m

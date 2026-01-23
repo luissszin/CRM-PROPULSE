@@ -6,7 +6,7 @@ const tables = {
   contacts: [],
   conversations: [],
   messages: [],
-  whatsapp_instances: [],
+  whatsapp_instances: [], // Legacy
   unit_whatsapp_connections: [],
 };
 
@@ -17,7 +17,7 @@ const idCounters = {
   contacts: 1,
   conversations: 1,
   messages: 1,
-  whatsapp_instances: 1,
+  whatsapp_instances: 1, // Legacy
   unit_whatsapp_connections: 1,
 };
 
@@ -107,6 +107,7 @@ function from(tableName) {
     limit(n) { state._limit = n; return this; },
     eq(key, val) { state.filters.push({ key, val }); return this; },
     insert(payload) { state._insertPayload = payload; return this; },
+    upsert(payload) { state._insertPayload = payload; return this; }, // Shim: treats upsert as insert
     update(payload) { state._updatePayload = payload; return this; },
     delete() { state._delete = true; return this; },
     single() { state._single = true; return this; },

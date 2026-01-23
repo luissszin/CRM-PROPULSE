@@ -89,7 +89,7 @@ describe('Security & Isolation Tests', () => {
         expect(res.body.unitId).toBe('unit_A');
     });
 
-    test('4. Should FORCE user unitId even if query param requests another (Isolation)', async () => {
+    test('4. Should REJECT request if query param requests another unit (Isolation)', async () => {
         const token = generateToken({ id: 'u1', role: 'agent' });
         
         // Mock DB Success
@@ -102,11 +102,8 @@ describe('Security & Isolation Tests', () => {
             .get('/data?unitId=unit_B')
             .set('Authorization', `Bearer ${token}`);
         
-        if (res.status !== 200) console.log('Test 4 Failed Status:', res.status, res.body);
-        expect(res.status).toBe(200);
-        // Middleware should have overwritten/ignored unit_B and set unit_A
-        if (res.body.accessedUnit !== 'unit_A') console.log('Test 4 Failed Logic: Expected unit_A, got', res.body.accessedUnit);
-        expect(res.body.accessedUnit).toBe('unit_A');
+        // With new security policy, this should be forbidden
+        expect(res.status).toBe(403);
     });
 
     test('5. Super Admin SHOULD be able to switch units', async () => {

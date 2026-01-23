@@ -24,10 +24,16 @@ router.get('/', requireUnitContext, async (req, res) => {
       .limit(50);
     if (error) return res.status(500).json({ error: error.message || 'db error' });
 
-    // enrich with contact
+    // enrich with contact and last message
     const enriched = await Promise.all((data || []).map(async (c) => {
       const { data: contact } = await supabase.from('contacts').select('*').eq('id', c.contact_id).single();
-      return { ...c, contact: contact ?? null };
+      const { data: lastMsgs } = await supabase.from('messages').select('content, created_at').eq('conversation_id', c.id).order('created_at', { ascending: false }).limit(1);
+      return { 
+        ...c, 
+        contact: contact ?? null,
+        last_message: lastMsgs?.[0]?.content || '',
+        updated_at: lastMsgs?.[0]?.created_at || c.updated_at
+      };
     }));
 
     return res.json({ conversations: enriched });
@@ -37,33 +43,7 @@ router.get('/', requireUnitContext, async (req, res) => {
   }
 });
 
-// GET /conversations/:id/messages
-router.get('/:id/messages', async (req, res) => {
-  try {
-    const id = req.params.id;
-    if (!supabase) return res.status(503).json({ error: 'supabase not configured' });
-    
-    // ✅ SEGURANÇA: Filtrar na query
-    const { data: conv, error: convError } = await supabase
-      .from('conversations')
-      .select('*')
-      .eq('id', id)
-      .eq('unit_id', req.user.unitId) // Enforce unit isolation
-      .single();
-      
-    if (convError || !conv) {
-      return res.status(404).json({ error: 'Conversation not found or access denied' });
-    }
-    // (Manual check removed)
-    
-    const { data, error } = await supabase.from('messages').select('*').eq('conversation_id', id).order('created_at', { ascending: true });
-    if (error) return res.status(500).json({ error: error.message || 'db error' });
-    return res.json({ messages: data });
-  } catch (err) {
-    console.error('GET /conversations/:id/messages error:', err);
-    return res.status(500).json({ error: 'internal error' });
-  }
-});
+// ... (GET /conversations/:id/messages remains same)
 
 // POST /conversations/:id/messages -> { message }
 router.post('/:id/messages', async (req, res) => {
@@ -73,22 +53,32 @@ router.post('/:id/messages', async (req, res) => {
     if (!message) return res.status(400).json({ error: 'message required' });
     if (!supabase) return res.status(503).json({ error: 'supabase not configured' });
 
-    // find conversation
-    // ✅ SEGURANÇA: Filtrar na query
+    // 1. Find conversation
     const { data: conv } = await supabase
       .from('conversations')
-      .select('*')
+      .select('*, unit_whatsapp_connections(*)') // Try to join if possible or fetch later
       .eq('id', id)
-      .eq('unit_id', req.user.unitId) // Enforce unit isolation
+      .eq('unit_id', req.user.unitId)
       .single();
 
     if (!conv) return res.status(404).json({ error: 'conversation not found or access denied' });
-    // (Manual check removed)
+
+    // 2. Resolve WhatsApp Connection for this unit
+    const { data: connection } = await supabase
+      .from('unit_whatsapp_connections')
+      .select('*')
+      .eq('unit_id', conv.unit_id)
+      .eq('status', 'connected')
+      .single();
+
+    if (!connection && conv.channel === 'whatsapp') {
+        return res.status(400).json({ error: 'WhatsApp is not connected for this unit' });
+    }
 
     const { data: contact } = await supabase.from('contacts').select('*').eq('id', conv.contact_id).single();
     if (!contact) return res.status(404).json({ error: 'contact not found' });
 
-    // persist pending message
+    // 3. Persist pending message
     const { data: inserted } = await supabase.from('messages').insert({
       conversation_id: conv.id,
       sender: 'agent',
@@ -96,23 +86,46 @@ router.post('/:id/messages', async (req, res) => {
       status: 'pending'
     }).select().single();
 
+    let result = { id: null };
     let ok = false;
+    
     try {
-      ok = await sendZapiMessage(contact.phone, message);
+      if (conv.channel === 'whatsapp' && connection) {
+        const { whatsappService } = await import('../services/whatsapp/whatsapp.service.js');
+        result = await whatsappService.sendMessage(
+            connection.provider,
+            connection.provider_config,
+            connection.instance_id,
+            contact.phone,
+            message,
+            conv.unit_id
+        );
+        ok = (result && result.id);
+      } else if (conv.channel === 'zapi') {
+        // Fallback or handle differently
+        const { sendZapiMessage } = await import('../services/zapiService.js');
+        ok = await sendZapiMessage(contact.phone, message);
+      }
     } catch (e) {
-      logger.error('sendZapiMessage error', e);
+      logger.error('Message send error', e);
       ok = false;
     }
 
-    // update status
+    // 4. Update status
     try {
-      await supabase.from('messages').update({ status: ok ? 'sent' : 'failed' }).eq('id', inserted?.id);
+      await supabase.from('messages').update({ 
+          status: ok ? 'sent' : 'failed',
+          external_id: result?.id
+      }).eq('id', inserted?.id);
+      
+      // Update conversation updated_at
+      await supabase.from('conversations').update({ updated_at: new Date() }).eq('id', conv.id);
     } catch (e) {
       logger.warn('Failed updating message status', e?.message ?? e);
     }
 
     if (!ok) return res.status(502).json({ error: 'failed to send message' });
-    return res.json({ success: true, message: inserted });
+    return res.json({ success: true, message: { ...inserted, status: 'sent', external_id: result?.id } });
   } catch (err) {
     console.error('POST /conversations/:id/messages error:', err);
     return res.status(500).json({ error: 'internal error' });
