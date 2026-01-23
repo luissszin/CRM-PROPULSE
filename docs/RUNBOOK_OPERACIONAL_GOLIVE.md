@@ -20,6 +20,8 @@
 # Configurar ambiente de teste
 $env:NODE_ENV='test'
 $env:JWT_ACCESS_SECRET='test-secret-key-for-jwt'
+
+# Opcional: Ignorar rate limit localmente nos testes
 $env:ENABLE_TEST_BYPASS='true'
 
 # Executar Release Gate
@@ -356,7 +358,7 @@ Confirmar que estas variáveis estão setadas:
 ✅ BASE_URL=https://your-production-domain.com (DEVE SER HTTPS!)
 
 ⚠️ CONFIRMAR NÃO ESTÁ SETADO:
-❌ ENABLE_TEST_BYPASS=false (ou não existir)
+❌ ENABLE_TEST_BYPASS (NUNCA usar em produção)
 ```
 
 **COMO CONFERIR (exemplo Railway):**
@@ -911,11 +913,15 @@ Write-Host "`n🚨 INICIANDO ROLLBACK..." -ForegroundColor Red
 git tag -a v1.0.0-whatsapp-FAILED -m "Rollback point - issues detected"
 git push origin v1.0.0-whatsapp-FAILED
 
-# 2. Revert código
+# 2. Revert código (um ou mais commits conforme necessário)
+# Se o problema for o commit de GO-LIVE (HEAD):
 git revert HEAD --no-edit
-git push origin main --force
+git push origin main
 
-Write-Host "✅ Código revertido" -ForegroundColor Yellow
+# Exemplo: Reverter múltiplos commits se houver fixes no meio:
+# git revert OLD_SHA..HEAD --no-edit
+
+Write-Host "✅ Código revertido no repositório" -ForegroundColor Yellow
 
 # 3. Aguardar redeploy
 Write-Host "Aguardando redeploy (60s)..." -ForegroundColor Yellow
