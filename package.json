@@ -19,6 +19,10 @@
 		"start:prod": "node backend/serve.js"
 	},
 	"license": "MIT",
+	"engines": {
+		"node": ">=20 <23",
+		"npm": ">=9"
+	},
 	"dependencies": {
 		"@supabase/supabase-js": "^2.89.0",
 		"axios": "^1.13.2",

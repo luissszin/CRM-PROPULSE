@@ -1,0 +1,169 @@
+﻿Deploying migrations for postgresql
+Database URL: 
+
+> evolution-api@2.1.2 db:deploy
+> node runWithProvider.js "rm -rf ./prisma/migrations && cp -r ./prisma/DATABASE_PROVIDER-migrations ./prisma/migrations && npx prisma migrate deploy --schema ./prisma/DATABASE_PROVIDER-schema.prisma"
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma/postgresql-schema.prisma
+Datasource "db": PostgreSQL database "propulse", schema "public" at "db:5432"
+
+44 migrations found in prisma/migrations
+
+Applying migration `20240609181238_init`
+Applying migration `20240610144159_create_column_profile_name_instance`
+Applying migration `20240611125754_create_columns_whitelabel_chatwoot`
+Applying migration `20240611202817_create_columns_debounce_time_typebot`
+Applying migration `20240712144948_add_business_id_column_to_instances`
+Applying migration `20240712150256_create_templates_table`
+Applying migration `20240712155950_adjusts_in_templates_table`
+Applying migration `20240712162206_remove_templates_table`
+Applying migration `20240712223655_column_fallback_typebot`
+Applying migration `20240712230631_column_ignore_jids_typebot`
+Applying migration `20240713184337_add_media_table`
+Applying migration `20240718121437_add_openai_tables`
+Applying migration `20240718123923_adjusts_openai_tables`
+Applying migration `20240722173259_add_name_column_to_openai_creds`
+Applying migration `20240722173518_add_name_column_to_openai_creds`
+Applying migration `20240723152648_adjusts_in_column_openai_creds`
+Applying migration `20240723200254_add_webhookurl_on_message`
+Applying migration `20240725184147_create_template_table`
+Applying migration `20240725202651_add_webhook_url_template_table`
+Applying migration `20240725221646_modify_token_instance_table`
+Applying migration `20240729115127_modify_trigger_type_openai_typebot_table`
+Applying migration `20240729180347_modify_typebot_session_status_openai_typebot_table`
+Applying migration `20240730152156_create_dify_tables`
+Applying migration `20240801193907_add_column_speech_to_text_openai_setting_table`
+Applying migration `20240803163908_add_column_description_on_integrations_table`
+Applying migration `20240808210239_add_column_function_url_openaibot_table`
+Applying migration `20240811021156_add_chat_name_column`
+Applying migration `20240811183328_add_unique_index_for_remoted_jid_and_instance_in_contacts`
+Applying migration `20240813003116_make_label_unique_for_instance`
+Applying migration `20240814173033_add_ignore_jids_chatwoot`
+Applying migration `20240814202359_integrations_unification`
+Applying migration `20240817110155_add_trigger_type_advanced`
+Applying migration `20240819154941_add_context_to_integration_session`
+Applying migration `20240821120816_bot_id_integration_session`
+Applying migration `20240821171327_add_generic_bot_table`
+Applying migration `20240821194524_add_flowise_table`
+Applying migration `20240824161333_add_type_on_integration_sessions`
+Applying migration `20240825130616_change_to_evolution_bot`
+Applying migration `20240828140837_add_is_on_whatsapp_table`
+Applying migration `20240828141556_remove_name_column_from_on_whatsapp_table`
+Applying migration `20240830193533_changed_table_case`
+Applying migration `20240906202019_add_headers_on_webhook_config`
+Applying migration `20241001180457_add_message_status`
+Applying migration `20241006130306_alter_status_on_message_table`
+
+The following migration(s) have been applied:
+
+migrations/
+  ÔööÔöÇ 20240609181238_init/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240610144159_create_column_profile_name_instance/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240611125754_create_columns_whitelabel_chatwoot/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240611202817_create_columns_debounce_time_typebot/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240712144948_add_business_id_column_to_instances/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240712150256_create_templates_table/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240712155950_adjusts_in_templates_table/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240712162206_remove_templates_table/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240712223655_column_fallback_typebot/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240712230631_column_ignore_jids_typebot/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240713184337_add_media_table/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240718121437_add_openai_tables/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240718123923_adjusts_openai_tables/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240722173259_add_name_column_to_openai_creds/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240722173518_add_name_column_to_openai_creds/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240723152648_adjusts_in_column_openai_creds/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240723200254_add_webhookurl_on_message/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240725184147_create_template_table/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240725202651_add_webhook_url_template_table/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240725221646_modify_token_instance_table/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240729115127_modify_trigger_type_openai_typebot_table/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240729180347_modify_typebot_session_status_openai_typebot_table/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240730152156_create_dify_tables/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240801193907_add_column_speech_to_text_openai_setting_table/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240803163908_add_column_description_on_integrations_table/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240808210239_add_column_function_url_openaibot_table/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240811021156_add_chat_name_column/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240811183328_add_unique_index_for_remoted_jid_and_instance_in_contacts/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240813003116_make_label_unique_for_instance/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240814173033_add_ignore_jids_chatwoot/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240814202359_integrations_unification/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240817110155_add_trigger_type_advanced/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240819154941_add_context_to_integration_session/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240821120816_bot_id_integration_session/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240821171327_add_generic_bot_table/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240821194524_add_flowise_table/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240824161333_add_type_on_integration_sessions/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240825130616_change_to_evolution_bot/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240828140837_add_is_on_whatsapp_table/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240828141556_remove_name_column_from_on_whatsapp_table/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240830193533_changed_table_case/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20240906202019_add_headers_on_webhook_config/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20241001180457_add_message_status/
+    ÔööÔöÇ migration.sql
+  ÔööÔöÇ 20241006130306_alter_status_on_message_table/
+    ÔööÔöÇ migration.sql
+      
+All migrations have been successfully applied.
+Migration succeeded
+
+> evolution-api@2.1.2 db:generate
+> node runWithProvider.js "npx prisma generate --schema ./prisma/DATABASE_PROVIDER-schema.prisma"
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma/postgresql-schema.prisma
+
+Ô£ö Generated Prisma Client (v5.20.0) to ./node_modules/@prisma/client in 847ms
+
+Start by importing your Prisma Client (See: http://pris.ly/d/importing-client)
+
+Tip: Interested in query caching in just a few lines of code? Try Accelerate today! https://pris.ly/tip-3-accelerate
+
+Prisma generate succeeded
+
+> evolution-api@2.1.2 start:prod
+> node dist/main
+

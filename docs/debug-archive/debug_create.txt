@@ -1,0 +1,35 @@
+﻿{
+    "instance":  {
+                     "instanceName":  "debug_23",
+                     "instanceId":  "ae33dfbe-dcc1-4caa-80df-a129f5a96dc0",
+                     "integration":  "WHATSAPP-BAILEYS",
+                     "webhookWaBusiness":  null,
+                     "accessTokenWaBusiness":  "",
+                     "status":  "connecting"
+                 },
+    "hash":  "debugtoken",
+    "webhook":  {
+
+                },
+    "websocket":  {
+
+                  },
+    "rabbitmq":  {
+
+                 },
+    "sqs":  {
+
+            },
+    "settings":  {
+                     "rejectCall":  false,
+                     "msgCall":  "",
+                     "groupsIgnore":  false,
+                     "alwaysOnline":  false,
+                     "readMessages":  false,
+                     "readStatus":  false,
+                     "syncFullHistory":  false
+                 },
+    "qrcode":  {
+                   "count":  0
+               }
+}

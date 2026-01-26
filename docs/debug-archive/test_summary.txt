@@ -1,0 +1,149 @@
+﻿Supabase environment variables missing; using in-memory DB for development.
+Initializing In-Memory DB...
+[INFO] [requeueWorker] started
+Serving frontend from C:\Users\jogod\crm-backend\frontend\dist
+Created table: units
+[32mÔ£ö backend\tests\integration_real.test.js [90m(3094.5613ms)[39m[39m
+before error: AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1134:18)
+    at afterConnectMultiple (node:net:1715:7) {
+  code: 'ECONNREFUSED',
+  response: undefined,
+  [errors]: [
+    Error: connect ECONNREFUSED ::1:3000
+        at createConnectionError (node:net:1678:14)
+        at afterConnectMultiple (node:net:1708:16) {
+      errno: -4078,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '::1',
+      port: 3000
+    },
+    Error: connect ECONNREFUSED 127.0.0.1:3000
+        at createConnectionError (node:net:1678:14)
+        at afterConnectMultiple (node:net:1708:16) {
+      errno: -4078,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 3000
+    }
+  ]
+}
+ÔûÂ ­ƒøí´©Å Security: Multi-Tenant Isolation
+  ÔûÂ ÔØî Cross-Tenant Access Attempt
+    [31mÔ£û should block user from accessing leads of another unit [90m(11.325ms)[39m[39m
+    [31mÔ£û should block user from listing conversations of another unit [90m(7.1352ms)[39m[39m
+  [31mÔ£û ÔØî Cross-Tenant Access Attempt [90m(20.0874ms)[39m[39m
+  ÔûÂ Ô£à Super Admin Access
+    [32mÔ£ö should allow super admin to access any unit [90m(0.6772ms)[39m[39m
+  [32mÔ£ö Ô£à Super Admin Access [90m(1.3216ms)[39m[39m
+  ÔûÂ ­ƒöÆ Authentication Required
+    [31mÔ£û should reject requests without token [90m(8.6907ms)[39m[39m
+    [31mÔ£û should reject requests with invalid token [90m(7.2733ms)[39m[39m
+  [31mÔ£û ­ƒöÆ Authentication Required [90m(16.9797ms)[39m[39m
+  ÔûÂ ­ƒÜ¿ Rate Limiting
+    [31mÔ£û should block excessive login attempts [90m(5.465ms)[39m[39m
+  [31mÔ£û ­ƒÜ¿ Rate Limiting [90m(6.1423ms)[39m[39m
+[31mÔ£û ­ƒøí´©Å Security: Multi-Tenant Isolation [90m(82.9868ms)[39m[39m
+ÔÜá´©Å Server not running on localhost:3000, skipping live healthcheck
+ÔûÂ ­ƒöÑ Smoke Test
+  [32mÔ£ö Server should start and respond to healthcheck [90m(76.0081ms)[39m[39m
+ÔÜá´©Å Server not running on localhost:3000, skipping auth test
+  [32mÔ£ö Auth middleware should reject invalid token [90m(14.7609ms)[39m[39m
+[32mÔ£ö ­ƒöÑ Smoke Test [90m(94.7756ms)[39m[39m
+[34mÔä╣ tests 9[39m
+[34mÔä╣ suites 6[39m
+[34mÔä╣ pass 4[39m
+[34mÔä╣ fail 5[39m
+[34mÔä╣ cancelled 0[39m
+[34mÔä╣ skipped 0[39m
+[34mÔä╣ todo 0[39m
+[34mÔä╣ duration_ms 3111.3581[39m
+
+[31mÔ£û failing tests:[39m
+
+test at backend\tests\security_isolation.test.js:106:9
+[31mÔ£û should block user from accessing leads of another unit [90m(11.325ms)[39m[39m
+  AggregateError [ECONNREFUSED]: 
+      at internalConnectMultiple (node:net:1134:18)
+      at afterConnectMultiple (node:net:1715:7) {
+    code: 'ECONNREFUSED',
+    response: undefined,
+    [errors]: [
+      Error: connect ECONNREFUSED ::1:3000
+          at createConnectionError (node:net:1678:14)
+          at afterConnectMultiple (node:net:1708:16),
+      Error: connect ECONNREFUSED 127.0.0.1:3000
+          at createConnectionError (node:net:1678:14)
+          at afterConnectMultiple (node:net:1708:16)
+    ]
+  }
+
+test at backend\tests\security_isolation.test.js:114:9
+[31mÔ£û should block user from listing conversations of another unit [90m(7.1352ms)[39m[39m
+  AggregateError [ECONNREFUSED]: 
+      at internalConnectMultiple (node:net:1134:18)
+      at afterConnectMultiple (node:net:1715:7) {
+    code: 'ECONNREFUSED',
+    response: undefined,
+    [errors]: [
+      Error: connect ECONNREFUSED ::1:3000
+          at createConnectionError (node:net:1678:14)
+          at afterConnectMultiple (node:net:1708:16),
+      Error: connect ECONNREFUSED 127.0.0.1:3000
+          at createConnectionError (node:net:1678:14)
+          at afterConnectMultiple (node:net:1708:16)
+    ]
+  }
+
+test at backend\tests\security_isolation.test.js:138:9
+[31mÔ£û should reject requests without token [90m(8.6907ms)[39m[39m
+  AggregateError [ECONNREFUSED]: 
+      at internalConnectMultiple (node:net:1134:18)
+      at afterConnectMultiple (node:net:1715:7) {
+    code: 'ECONNREFUSED',
+    response: undefined,
+    [errors]: [
+      Error: connect ECONNREFUSED ::1:3000
+          at createConnectionError (node:net:1678:14)
+          at afterConnectMultiple (node:net:1708:16),
+      Error: connect ECONNREFUSED 127.0.0.1:3000
+          at createConnectionError (node:net:1678:14)
+          at afterConnectMultiple (node:net:1708:16)
+    ]
+  }
+
+test at backend\tests\security_isolation.test.js:143:9
+[31mÔ£û should reject requests with invalid token [90m(7.2733ms)[39m[39m
+  AggregateError [ECONNREFUSED]: 
+      at internalConnectMultiple (node:net:1134:18)
+      at afterConnectMultiple (node:net:1715:7) {
+    code: 'ECONNREFUSED',
+    response: undefined,
+    [errors]: [
+      Error: connect ECONNREFUSED ::1:3000
+          at createConnectionError (node:net:1678:14)
+          at afterConnectMultiple (node:net:1708:16),
+      Error: connect ECONNREFUSED 127.0.0.1:3000
+          at createConnectionError (node:net:1678:14)
+          at afterConnectMultiple (node:net:1708:16)
+    ]
+  }
+
+test at backend\tests\security_isolation.test.js:153:9
+[31mÔ£û should block excessive login attempts [90m(5.465ms)[39m[39m
+  AggregateError [ECONNREFUSED]: 
+      at internalConnectMultiple (node:net:1134:18)
+      at afterConnectMultiple (node:net:1715:7) {
+    code: 'ECONNREFUSED',
+    response: undefined,
+    [errors]: [
+      Error: connect ECONNREFUSED ::1:3000
+          at createConnectionError (node:net:1678:14)
+          at afterConnectMultiple (node:net:1708:16),
+      Error: connect ECONNREFUSED 127.0.0.1:3000
+          at createConnectionError (node:net:1678:14)
+          at afterConnectMultiple (node:net:1708:16)
+    ]
+  }
