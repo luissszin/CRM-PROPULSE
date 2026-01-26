@@ -39,6 +39,11 @@ async function request(endpoint: string, options: RequestInit = {}) {
   }
 
   if (!response.ok) {
+    if (response.status === 424) {
+        // Returned by Evolution/Backend when QR code is pending but request valid
+        // We let the caller handle this specific "soft error"
+        return response.json(); 
+    }
     const errorText = await response.text();
     throw new Error(`API Error ${response.status}: ${errorText}`);
   }

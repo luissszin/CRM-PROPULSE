@@ -30,7 +30,7 @@ class EvolutionProvider {
     }
 
 
-    async createInstance(instanceName) {
+    async createInstance(instanceName, webhookConfig) {
         try {
             // Use stable instance name for Unit mapping
             const uniqueInstanceName = instanceName;
@@ -41,18 +41,30 @@ class EvolutionProvider {
             const instanceToken = crypto.randomUUID(); 
 
             try {
-                const createResponse = await this.client.post(`/instance/create`, {
+                const payload = {
                     instanceName: uniqueInstanceName,
                     token: instanceToken,
-                    qrcode: true,
-                    integration: 'WHATSAPP-BAILEYS',
-                    webhook: process.env.BASE_URL ? `${process.env.BASE_URL}/webhooks/whatsapp/evolution/${process.env.WEBHOOK_SECRET || 'default-secret'}` : undefined,
-                     events: [
-                        "QRCODE_UPDATED",
-                        "MESSAGES_UPSERT",
-                        "CONNECTION_UPDATE"
-                    ]
-                });
+                    qrcode: true
+                };
+
+                // Add webhook configuration if provided
+                if (webhookConfig && webhookConfig.url) {
+                    payload.webhook = {
+                        enabled: true,
+                        url: webhookConfig.url,
+                        byEvents: false,
+                        events: [
+                            'QRCODE_UPDATED', 
+                            'MESSAGES_UPSERT', 
+                            'MESSAGES_UPDATE', 
+                            'CONNECTION_UPDATE',
+                            'TYPEBOT_START',
+                            'TYPEBOT_UNKNOWN_MESSAGE'
+                        ]
+                    };
+                }
+
+                const createResponse = await this.client.post(`/instance/create`, payload);
                 debugLog(`Instance created response:`, createResponse.data);
             } catch (createError) {
                 // If instance already exists, we consider it a success and proceed to connect configuration
@@ -63,8 +75,9 @@ class EvolutionProvider {
                 }
             }
             
-            // Set basic settings
+            // Set basic settings and Webhook
             try {
+                // Ensure Settings
                 await this.client.post(`/settings/set/${encodeURIComponent(uniqueInstanceName)}`, {
                     rejectCall: false,
                     msgCall: "",
@@ -74,8 +87,25 @@ class EvolutionProvider {
                     readStatus: false,
                     syncFullHistory: false
                 });
+
+                // Update Webhook (Crucial for Go-Live)
+                if (webhookConfig && webhookConfig.url) {
+                    debugLog(`Updating webhook for ${uniqueInstanceName}: ${webhookConfig.url}`);
+                    await this.client.post(`/webhook/set/${encodeURIComponent(uniqueInstanceName)}`, {
+                        enabled: true,
+                        url: webhookConfig.url,
+                        byEvents: false,
+                        events: [
+                            'QRCODE_UPDATED', 
+                            'MESSAGES_UPSERT', 
+                            'MESSAGES_UPDATE', 
+                            'CONNECTION_UPDATE'
+                        ]
+                    });
+                }
             } catch (e) {
-                debugLog(`Failed to set settings: ${e.message}`);
+                debugLog(`Failed to set settings/webhook: ${e.message}`);
+                // Don't throw here, instance is created at least
             }
 
             console.log(`[Evolution] Instance ${uniqueInstanceName} created. Waiting 10s for Baileys...`);
@@ -111,10 +141,26 @@ class EvolutionProvider {
             try {
                debugLog(`Connecting instance (Attempt ${16 - retries}): ${instanceName}`);
                const response = await this.client.get(`/instance/connect/${encodeURIComponent(instanceName)}`);
-               lastResponse = response.data;
                
+               // Robust response validation
+               if (!response || !response.data) {
+                   debugLog(`Empty response from Evolution API`);
+                   await new Promise(resolve => setTimeout(resolve, 3000));
+                   retries--;
+                   continue;
+               }
+
+               lastResponse = response.data;
                debugLog(`Connect response:`, lastResponse);
                
+               // Handle common empty/awaiting response {"count": 0}
+               if (lastResponse.count === 0 && !lastResponse.qrcode && !lastResponse.base64) {
+                   debugLog(`QR not ready (count: 0), waiting...`);
+                   await new Promise(resolve => setTimeout(resolve, 3000));
+                   retries--;
+                   continue;
+               }
+
                const qrcodeData = lastResponse.qrcode;
                const qrcode = (typeof qrcodeData === 'string' ? qrcodeData : qrcodeData?.base64) || lastResponse.base64;
                
@@ -132,7 +178,8 @@ class EvolutionProvider {
             } catch (error) {
                 const errorData = error.response?.data || error.message;
                 debugLog(`Connect attempt failed:`, errorData);
-                if (error.response?.status === 404) break;
+                // If instance not found or forbidden, stop retrying
+                if (error.response?.status === 404 || error.response?.status === 403) break;
                 
                 await new Promise(resolve => setTimeout(resolve, 3000));
                 retries--;
@@ -141,7 +188,9 @@ class EvolutionProvider {
         
         return {
             qrcode: null,
-            code: lastResponse?.code
+            status: 'failed',
+            error: 'EVOLUTION_QR_TIMEOUT',
+            message: 'Timed out waiting for QR Code from Evolution API.'
         };
     }
 

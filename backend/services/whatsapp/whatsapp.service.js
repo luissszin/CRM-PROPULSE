@@ -29,9 +29,9 @@ export class WhatsappService {
     /**
      * Create/Register an instance in the remote provider
      */
-    async createInstance(providerType, config, instanceName) {
+    async createInstance(providerType, config, instanceName, webhookConfig) {
         const provider = this.getProvider(providerType, config);
-        return await provider.createInstance(instanceName);
+        return await provider.createInstance(instanceName, webhookConfig);
     }
 
     /**

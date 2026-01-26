@@ -84,9 +84,15 @@ router.post('/:unitId/whatsapp/connect', async (req, res) => {
         const { provider, credentials = {} } = req.body || {};
         if (!provider) return res.status(400).json({ error: 'Provider is required' });
 
-        // 1.5 Fetch existing connection
+        // 1.5 Fetch existing connection and prepare secrets
         console.log('[WhatsApp Connect] Fetching connection from DB...');
         let connection = await getConnection(unitId);
+        const webhookSecret = connection?.webhook_secret || crypto.randomBytes(32).toString('hex');
+        const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+        const webhookConfig = {
+            url: `${baseUrl}/webhooks/whatsapp/evolution/${webhookSecret}`
+        };
+
         console.log('[WhatsApp Connect] Connection found:', !!connection);
 
         // 2. Setup Config safely and Sanitize InstanceName
@@ -108,12 +114,13 @@ router.post('/:unitId/whatsapp/connect', async (req, res) => {
             instanceName,
             provider,
             apiUrl: config.apiUrl,
-            hasApiKey: !!config.apiKey
+            hasApiKey: !!config.apiKey,
+            webhookUrl: webhookConfig.url
         });
 
         // 3. Call Service
         console.log('[WhatsApp Connect] Calling whatsappService.createInstance...');
-        const result = await whatsappService.createInstance(provider, config, instanceName);
+        const result = await whatsappService.createInstance(provider, config, instanceName, webhookConfig);
         console.log('[WhatsApp Connect] whatsappService.createInstance completed:', {
             status: result.status,
             hasQR: !!result.qrcode
@@ -127,7 +134,7 @@ router.post('/:unitId/whatsapp/connect', async (req, res) => {
             status: result.status || 'disconnected',
             qr_code: result.status === 'connected' ? null : (result.qrcode || null),
             provider_config: config,
-            webhook_secret: connection?.webhook_secret || crypto.randomBytes(32).toString('hex')
+            webhook_secret: webhookSecret
         };
 
         if (connection) {
@@ -157,6 +164,17 @@ router.post('/:unitId/whatsapp/connect', async (req, res) => {
             throw new Error('Failed to save connection to database');
         }
 
+        // 5. Check if we actually got a QR code (standardized error)
+        if (result.status === 'failed' || (result.status === 'connecting' && !result.qrcode)) {
+            return res.status(424).json({
+                error: {
+                    code: result.error || 'PROVIDER_QR_NOT_READY',
+                    message: result.message || 'WhatsApp instance created but QR Code is not yet ready. Please try again in a few seconds.',
+                    details: 'Evolution API background initialization (Baileys) might take a few moments.'
+                }
+            });
+        }
+
         return res.status(201).json({
             success: true,
             connection: {
@@ -167,6 +185,7 @@ router.post('/:unitId/whatsapp/connect', async (req, res) => {
         });
 
     } catch (error) {
+        console.error('[WhatsApp Connect] FULL ERROR:', error);
         let status = 500;
         let message = error.message;
         let details = error.response?.data;
@@ -174,18 +193,33 @@ router.post('/:unitId/whatsapp/connect', async (req, res) => {
         // If it's an axios error or similar with a response
         if (error.response?.status) {
             status = error.response.status;
+            
+            // CRITICAL: Mask Provider 401/403 as 424 (Failed Dependency)
+            // If we return 401, the CRM Frontend might log the user out!
+            if (status === 401 || status === 403) {
+                console.warn(`[WhatsApp Connect] Handler intercepted Provider ${status}. Masking as 424.`);
+                status = 424;
+                message = `Provider Authentication Failed. Please check EVOLUTION_API_KEY in Railway.`;
+                details = { providerStatus: error.response.status };
+            }
         } 
         // Handle Connection Refused (Provider Down)
         else if (error.code === 'ECONNREFUSED' || error.message.includes('fetch failed')) {
-             status = 503; // Service Unavailable
-             message = 'Provider Unavailable (Evolution API is likely offline). Please ensure Docker container is running.';
+             status = 502; // Bad Gateway
+             message = 'Provider Unavailable (Evolution API is likely offline). Check PORT=8080 in Railway.';
         }
         // If it's the wrapped error from provider: Error: Failed to create... {"status":401...}
         else if (message.includes('"status":')) {
             try {
                 const innerDetailsSnippet = message.substring(message.indexOf('{'));
                 const innerDetails = JSON.parse(innerDetailsSnippet);
-                if (innerDetails.status) status = innerDetails.status;
+                if (innerDetails.status) {
+                    status = innerDetails.status;
+                    if (status === 401 || status === 403) {
+                        status = 424;
+                        message = 'Provider Auth Failed (Check API Key)';
+                    }
+                }
             } catch (e) { /* ignore parse error */ }
         }
 
@@ -256,9 +290,19 @@ router.get('/:unitId/whatsapp/qrcode', async (req, res) => {
                 .eq('id', connection.id);
         }
 
+        if (!result.qrcode) {
+            return res.status(424).json({
+                error: {
+                    code: result.error || 'QR_UNAVAILABLE',
+                    message: result.message || 'QR Code could not be generated at this moment. Evolution API might be initializing.',
+                    details: result.details || 'Check Evolution logs for "error in validating connection"'
+                }
+            });
+        }
+
         return res.json({
             qrcode: result.qrcode,
-            status: result.qrcode ? 'connecting' : (liveStatus.status || 'disconnected')
+            status: 'connecting'
         });
 
 

@@ -97,7 +97,7 @@ export default function UnitWhatsAppConfig() {
 
   // Polling Logic
   useEffect(() => {
-    if (connectionStatus === 'connecting' || connectionStatus === 'waiting_qr') {
+    if (connectionStatus === 'connecting' || connectionStatus === 'waiting_qr' || connectionStatus === 'qr') {
       if (!connectionStartTime.current) connectionStartTime.current = Date.now();
       
       pollingRef.current = setInterval(() => {
@@ -177,11 +177,24 @@ export default function UnitWhatsAppConfig() {
     } catch (error: any) {
       console.error('[WhatsAppConfig] Create Instance Error:', error);
       
-      // Handle api.ts errors (which have message) and axios errors (which have response)
-      const errorMsg = error.response?.data?.error || error.message || 'Erro desconhecido';
-      // Safe access to details
-      const details = error.response?.data?.details || (error.message && error.message.includes('{') ? error.message : null);
-      
+      const errorResponse = error.response || {};
+      const errorMsg = errorResponse.data?.error?.message || errorResponse.data?.error || error.message || 'Erro desconhecido';
+      const status = errorResponse.status;
+      const errorCode = errorResponse.data?.error?.code;
+
+      // Handle 424 (Provider QR Not Ready)
+      if (status === 424) {
+          toast({
+              variant: 'default',
+              title: 'Aguardando Provedor (Evolution)',
+              description: 'Instância criada! Estamos aguardando o provedor gerar o QR Code. Isso pode levar alguns segundos.',
+          });
+          
+          // CRITICAL: Set waiting status to trigger polling
+          setConnectionStatus('waiting_qr');
+          return;
+      }
+
       toast({
         variant: 'destructive',
         title: 'Falha na Conexão',
@@ -190,7 +203,11 @@ export default function UnitWhatsAppConfig() {
       
       setConnectionStatus('disconnected');
     } finally {
-      setConnecting(false);
+      if (connectionStatus !== 'waiting_qr') {
+          setConnecting(false);
+      } else {
+          setConnecting(false); 
+      }
     }
   };
 
@@ -263,7 +280,17 @@ export default function UnitWhatsAppConfig() {
           }
       } catch (error: any) {
           console.error('[WhatsAppConfig] Refresh QR Error:', error);
-          toast({ variant: 'destructive', title: 'Erro ao atualizar QR', description: error.message });
+          
+          // Handle 424 here as well for Refresh
+          if (error.response?.status === 424) {
+              toast({
+                  title: 'Ainda carregando...',
+                  description: 'O provedor ainda está inicializando. Tente novamente em 5 segundos.', 
+              });
+              setConnectionStatus('waiting_qr'); // Keep polling
+          } else {
+              toast({ variant: 'destructive', title: 'Erro ao atualizar QR', description: error.message });
+          }
       } finally {
           setConnecting(false);
       }
@@ -289,11 +316,12 @@ export default function UnitWhatsAppConfig() {
         }`}>
           {connectionStatus === 'connected' && <CheckCircle className="h-4 w-4" />}
           {connectionStatus === 'connecting' && <Loader2 className="h-4 w-4 animate-spin" />}
+          {connectionStatus === 'waiting_qr' && <Loader2 className="h-4 w-4 animate-spin" />}
           {connectionStatus === 'disconnected' && <XCircle className="h-4 w-4" />}
           <span className="capitalize font-medium text-sm">
             {connectionStatus === 'connected' ? 'Conectado' : 
              connectionStatus === 'connecting' ? 'Conectando...' : 
-             connectionStatus === 'waiting_qr' ? 'Aguardando Leitura' : 'Desconectado'}
+             connectionStatus === 'waiting_qr' ? 'Aguardando Provedor' : 'Desconectado'}
           </span>
         </div>
       </div>
@@ -465,11 +493,16 @@ export default function UnitWhatsAppConfig() {
                           </Button>
                         </>
                       ) : (
-                        <div className="flex flex-col items-center p-8 space-y-4">
+                        <div className="flex flex-col items-center p-8 space-y-4 text-center">
                            <Loader2 className="h-12 w-12 text-indigo-500 animate-spin" />
-                           <p className="text-gray-600 text-sm font-medium">Aguardando QR Code...</p>
-                           <Button variant="outline" size="sm" onClick={handleRefreshQR} disabled={connecting}>
-                              {connecting ? 'Iniciando...' : 'Forçar Novo QR'}
+                           <div className="space-y-1">
+                               <p className="text-gray-900 font-semibold">Aguardando Provedor...</p>
+                               <p className="text-gray-500 text-sm max-w-[200px]">
+                                   Estamos solicitando o QR Code ao Evolution API. Isso pode levar alguns segundos.
+                               </p>
+                           </div>
+                           <Button variant="outline" size="sm" onClick={handleRefreshQR} disabled={connecting} className="mt-2 text-indigo-600 border-indigo-200 bg-indigo-50 hover:bg-indigo-100">
+                               {connecting ? 'Buscando...' : 'Verificar Agora'}
                            </Button>
                         </div>
                       )}

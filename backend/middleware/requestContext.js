@@ -35,7 +35,7 @@ export const requestContext = (req, res, next) => {
         });
 
         // Record Metrics
-        if (unitId) {
+        if (unitId && unitId !== 'anon') {
             metrics.increment(unitId, 'api_requests_count');
             // metrics.recordLatency(unitId, duration); // Future: latency tracking
         }

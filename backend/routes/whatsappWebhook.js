@@ -116,6 +116,18 @@ router.post('/:provider/:secret', async (req, res) => {
             } else {
                 console.log(`[Webhook:${requestId}] Message created: ${result?.messageId}`);
                 metrics.increment(connection.unit_id, 'messages_received');
+                
+                // 🔥 Trigger Automation Engine
+                await automationEngine.trigger(connection.unit_id, 'message_received', {
+                    lead_id: result.conversation?.leadId || null, // Ensure result has context
+                    contact_id: result.conversation?.contactId || null,
+                    message: { 
+                        content: payload.data?.message?.conversation || payload.data?.message?.extendedTextMessage?.text || '',
+                        id: result.messageId
+                    },
+                    unit_id: connection.unit_id,
+                    phone: payload.sender || payload.data?.key?.remoteJid?.split('@')[0]
+                });
             }
         }
 
